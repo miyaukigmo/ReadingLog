@@ -282,7 +282,7 @@ export default function DocumentDetail() {
                 </button>
                 {showNotebookLm ? <ChevronDown className="h-5 w-5 text-gray-400 shrink-0" /> : <ChevronRight className="h-5 w-5 text-gray-400 shrink-0" />}
               </div>
-            </div>
+            </button>
             {showNotebookLm && (
               <div className="p-6 sm:p-8 border-t border-gray-100 bg-gray-50/50">
                 <article className="prose prose-sm sm:prose-base prose-gray max-w-none prose-headings:font-bold">
