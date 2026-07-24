@@ -55,8 +55,9 @@ export default function DocumentDetail() {
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = 'ja-JP';
     
-    // 話速などを少し調整（標準は1）
-    utterance.rate = 1.1;
+    // 話速をローカルストレージから取得して設定（デフォルトは1.1）
+    const savedRate = localStorage.getItem('readingLogSpeechRate');
+    utterance.rate = savedRate ? parseFloat(savedRate) : 1.1;
 
     utterance.onend = () => setSpeakingId(null);
     utterance.onerror = () => setSpeakingId(null);

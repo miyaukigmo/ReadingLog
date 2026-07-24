@@ -1,10 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Settings as SettingsIcon, Download, HardDrive, RefreshCw } from 'lucide-react';
+import { Settings as SettingsIcon, Download, HardDrive, RefreshCw, Volume2 } from 'lucide-react';
 
 export default function Settings() {
   const [exporting, setExporting] = useState(false);
   const [message, setMessage] = useState('');
+  
+  const [speechRate, setSpeechRate] = useState('1.1');
+
+  useEffect(() => {
+    const savedRate = localStorage.getItem('readingLogSpeechRate');
+    if (savedRate) {
+      setSpeechRate(savedRate);
+    }
+  }, []);
+
+  const handleRateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newRate = e.target.value;
+    setSpeechRate(newRate);
+    localStorage.setItem('readingLogSpeechRate', newRate);
+  };
 
   const handleFullBackup = async () => {
     setExporting(true);
@@ -95,6 +110,35 @@ export default function Settings() {
                 {exporting ? '処理中...' : '全データをエクスポート'}
               </button>
               {message && <p className="text-sm text-green-600 mt-2 font-medium">{message}</p>}
+            </div>
+          </div>
+        </section>
+
+        {/* 音声設定 */}
+        <section className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-6">
+          <div className="flex items-center gap-2 border-b border-gray-100 pb-3">
+            <Volume2 className="h-5 w-5 text-gray-700" />
+            <h2 className="text-lg font-bold text-gray-900">音声設定</h2>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-bold text-gray-800 mb-1">読み上げ速度</label>
+              <p className="text-xs text-gray-500 mb-3">
+                AIレポートやまとめを読み上げる際の再生速度を指定します。
+              </p>
+              <select 
+                value={speechRate}
+                onChange={handleRateChange}
+                className="mt-1 block w-48 rounded-md border border-gray-300 px-3 py-2 text-sm bg-white"
+              >
+                <option value="0.75">0.75x (ゆっくり)</option>
+                <option value="1.0">1.0x (標準)</option>
+                <option value="1.1">1.1x (少し速め)</option>
+                <option value="1.25">1.25x</option>
+                <option value="1.5">1.5x</option>
+                <option value="2.0">2.0x (倍速)</option>
+              </select>
             </div>
           </div>
         </section>
