@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { ChevronLeft, Edit, Download, Trash2, ChevronDown, ChevronRight, CheckCircle2, Sparkles } from 'lucide-react';
+import { ChevronLeft, Edit, Download, Trash2, ChevronDown, ChevronRight, CheckCircle2, Sparkles, Volume2, Square } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 export default function DocumentDetail() {
@@ -12,6 +12,58 @@ export default function DocumentDetail() {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [showNotebookLm, setShowNotebookLm] = useState(false);
+  
+  // 読み上げ状態の管理 (現在再生中のIDを保持)
+  const [speakingId, setSpeakingId] = useState<string | null>(null);
+
+  // アンマウント時（画面遷移時）に音声を停止
+  useEffect(() => {
+    return () => {
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const handleSpeak = (text: string, id: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    if (!window.speechSynthesis) {
+      alert("お使いのブラウザは音声読み上げに対応していません。");
+      return;
+    }
+
+    if (speakingId === id) {
+      // 同じものを再生中なら停止
+      window.speechSynthesis.cancel();
+      setSpeakingId(null);
+      return;
+    }
+
+    // 他の音声を停止
+    window.speechSynthesis.cancel();
+
+    // Markdown記号などを除去して読みやすくする
+    const cleanText = text
+      .replace(/[#*`_\[\]]/g, '')
+      .replace(/https?:\/\/[^\s]+/g, 'URL省略')
+      .replace(/\n+/g, '。');
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.lang = 'ja-JP';
+    
+    // 話速などを少し調整（標準は1）
+    utterance.rate = 1.1;
+
+    utterance.onend = () => setSpeakingId(null);
+    utterance.onerror = () => setSpeakingId(null);
+
+    window.speechSynthesis.speak(utterance);
+    setSpeakingId(id);
+  };
 
   useEffect(() => {
     if (id) fetchDocument();
@@ -177,7 +229,16 @@ export default function DocumentDetail() {
 
             {doc.summary && (
               <div className="pt-6 mt-6 border-t border-gray-100">
-                <h3 className="text-sm font-bold text-gray-900 mb-2">資料全体のまとめ</h3>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-bold text-gray-900">資料全体のまとめ</h3>
+                  <button
+                    onClick={(e) => handleSpeak(doc.summary, 'summary', e)}
+                    className={`p-2 rounded-full transition-colors ${speakingId === 'summary' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-900'}`}
+                    title={speakingId === 'summary' ? "読み上げ停止" : "読み上げ開始"}
+                  >
+                    {speakingId === 'summary' ? <Square className="h-4 w-4 fill-current" /> : <Volume2 className="h-4 w-4" />}
+                  </button>
+                </div>
                 <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{doc.summary}</p>
               </div>
             )}
@@ -211,8 +272,17 @@ export default function DocumentDetail() {
                 </div>
                 <h2 className="text-lg font-bold text-gray-900">NotebookLM AI レポート</h2>
               </div>
-              {showNotebookLm ? <ChevronDown className="h-5 w-5 text-gray-400 shrink-0" /> : <ChevronRight className="h-5 w-5 text-gray-400 shrink-0" />}
-            </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={(e) => handleSpeak(doc.notebook_lm_report, 'notebook_lm', e)}
+                  className={`p-2 rounded-full transition-colors ${speakingId === 'notebook_lm' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-900'}`}
+                  title={speakingId === 'notebook_lm' ? "読み上げ停止" : "読み上げ開始"}
+                >
+                  {speakingId === 'notebook_lm' ? <Square className="h-4 w-4 fill-current" /> : <Volume2 className="h-4 w-4" />}
+                </button>
+                {showNotebookLm ? <ChevronDown className="h-5 w-5 text-gray-400 shrink-0" /> : <ChevronRight className="h-5 w-5 text-gray-400 shrink-0" />}
+              </div>
+            </div>
             {showNotebookLm && (
               <div className="p-6 sm:p-8 border-t border-gray-100 bg-gray-50/50">
                 <article className="prose prose-sm sm:prose-base prose-gray max-w-none prose-headings:font-bold">
