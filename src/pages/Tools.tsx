@@ -101,7 +101,7 @@ const NOTEBOOK_LM_PROMPT = `選択されている資料の内容を、短時間�
 ・各章を同じ分量に機械的にそろえない
 ・短すぎる概要にはせず、かといって原資料の言い換えを延々と続けない
 ・読みやすい見出しと段落を使い、長大な箇条書きだけのレポートにはしない
-\`;
+`;
 
 export default function Tools() {
   const [direction, setDirection] = useState('left');
