@@ -1,0 +1,21 @@
+{
+  "name": "個人学習資料アプリ",
+  "short_name": "ReadingLog",
+  "description": "読書ノートや学習資料を管理・復習するアプリ",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/vite.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}
