@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { importSchema } from '@/types/schema';
-import type { ImportData, ImportDataV11 } from '@/types/schema';
+import type { ImportDataV11 } from '@/types/schema';
 import { Upload, FileJson, AlertCircle, CheckCircle2, ChevronLeft } from 'lucide-react';
 
 export default function Import() {

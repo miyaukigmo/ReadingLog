@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { ChevronLeft, Edit, Download, Trash2, ChevronDown, ChevronRight, CheckCircle2, Sparkles, Volume2, Square, Copy, Link as LinkIcon } from 'lucide-react';
+import { ChevronLeft, Edit, Download, ChevronDown, ChevronRight, CheckCircle2, Sparkles, Volume2, Square, Copy, Link as LinkIcon, Search } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { DOCUMENT_TYPE_LABELS, DOCUMENT_PURPOSE_LABELS, CONNECTION_TYPE_LABELS, CONNECTION_BASIS_LABELS, getLabel } from '@/lib/constants';
+import { DOCUMENT_TYPE_LABELS, CONNECTION_TYPE_LABELS, CONNECTION_BASIS_LABELS, getLabel } from '@/lib/constants';
 
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>();

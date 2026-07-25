@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { backupSchema } from '@/types/schema';
-import type { BackupData, BackupDataV11 } from '@/types/schema';
+import type { BackupDataV11 } from '@/types/schema';
 import { Settings as SettingsIcon, Download, HardDrive, RefreshCw, Volume2, Upload, AlertCircle, CheckCircle2, FileJson } from 'lucide-react';
 
 export default function Settings() {
