@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, Search, BookOpen, FileText, Database, Link as LinkIcon, FileCheck, LayoutGrid, List } from 'lucide-react';
 import { DOCUMENT_TYPE_LABELS, getLabel, getTypeBadgeClass, getTypeCardClass } from '@/lib/constants';
+import { HighlightText } from '@/components/HighlightText';
 
 // キーワードの前後を切り出してスニペットを作る関数
 function getSnippet(text: string, query: string, maxLength: number = 80): string {
@@ -19,22 +20,6 @@ function getSnippet(text: string, query: string, maxLength: number = 80): string
   
   return snippet;
 }
-
-// 検索キーワードをハイライトするコンポーネント
-const HighlightText = ({ text, query }: { text: string; query: string }) => {
-  if (!query || !text) return <>{text}</>;
-  
-  const regex = new RegExp(`(${query})`, 'gi');
-  const parts = text.split(regex);
-  
-  return (
-    <>
-      {parts.map((part, i) => 
-        regex.test(part) ? <mark key={i} className="bg-yellow-200 text-gray-900 rounded-sm px-0.5">{part}</mark> : <span key={i}>{part}</span>
-      )}
-    </>
-  );
-};
 
 export default function Dashboard() {
   const [documents, setDocuments] = useState<any[]>([]);
