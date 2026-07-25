@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { ChevronLeft, Edit, Download, ChevronDown, ChevronRight, CheckCircle2, Sparkles, Volume2, Square, Copy, Link as LinkIcon, Search } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { DOCUMENT_TYPE_LABELS, CONNECTION_TYPE_LABELS, CONNECTION_BASIS_LABELS, getLabel } from '@/lib/constants';
+import { DOCUMENT_TYPE_LABELS, CONNECTION_TYPE_LABELS, CONNECTION_BASIS_LABELS, getLabel, getTypeBadgeClass } from '@/lib/constants';
 
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>();
@@ -244,7 +244,7 @@ export default function DocumentDetail() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-4 sm:p-8">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
-              <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-500/10">
+              <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${getTypeBadgeClass(doc.type)}`}>
                 {getLabel(DOCUMENT_TYPE_LABELS, doc.type, doc.type)}
               </span>
               <div className="flex flex-wrap gap-1">

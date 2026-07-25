@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, Search, BookOpen, FileText, Database, Link as LinkIcon, FileCheck } from 'lucide-react';
-import { DOCUMENT_TYPE_LABELS, getLabel } from '@/lib/constants';
+import { DOCUMENT_TYPE_LABELS, getLabel, getTypeBadgeClass, getTypeCardClass } from '@/lib/constants';
 
 export default function Dashboard() {
   const [documents, setDocuments] = useState<any[]>([]);
@@ -27,19 +27,6 @@ export default function Dashboard() {
   };
 
   const navigate = useNavigate();
-
-  const getTypeStyles = (type: string) => {
-    switch (type) {
-      case 'book': return { card: 'border-orange-200 hover:border-orange-400 hover:shadow-orange-100/50', badge: 'bg-orange-50 text-orange-700 ring-orange-500/20' };
-      case 'paper': return { card: 'border-indigo-200 hover:border-indigo-400 hover:shadow-indigo-100/50', badge: 'bg-indigo-50 text-indigo-700 ring-indigo-500/20' };
-      case 'article': return { card: 'border-emerald-200 hover:border-emerald-400 hover:shadow-emerald-100/50', badge: 'bg-emerald-50 text-emerald-700 ring-emerald-500/20' };
-      case 'report': return { card: 'border-blue-200 hover:border-blue-400 hover:shadow-blue-100/50', badge: 'bg-blue-50 text-blue-700 ring-blue-500/20' };
-      case 'lecture': return { card: 'border-rose-200 hover:border-rose-400 hover:shadow-rose-100/50', badge: 'bg-rose-50 text-rose-700 ring-rose-500/20' };
-      case 'novel': return { card: 'border-purple-200 hover:border-purple-400 hover:shadow-purple-100/50', badge: 'bg-purple-50 text-purple-700 ring-purple-500/20' };
-      case 'essay': return { card: 'border-teal-200 hover:border-teal-400 hover:shadow-teal-100/50', badge: 'bg-teal-50 text-teal-700 ring-teal-500/20' };
-      default: return { card: 'border-slate-200 hover:border-slate-400 hover:shadow-slate-100/50', badge: 'bg-slate-50 text-slate-700 ring-slate-500/20' };
-    }
-  };
 
   useEffect(() => {
     fetchDocuments();
@@ -230,7 +217,7 @@ export default function Dashboard() {
                 <div
                   key={doc.id}
                   onClick={() => navigate(`/document/${doc.id}`)}
-                  className={`group relative flex flex-col justify-between rounded-xl bg-white p-4 sm:p-6 shadow-sm border transition-all cursor-pointer hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] ${getTypeStyles(doc.type).card}`}
+                  className={`group relative flex flex-col justify-between rounded-xl bg-white p-4 sm:p-6 shadow-sm border transition-all cursor-pointer hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] ${getTypeCardClass(doc.type)}`}
                 >
                   <div>
                     <div className="flex items-start justify-between gap-4">
@@ -238,7 +225,7 @@ export default function Dashboard() {
                         {doc.title}
                       </h2>
                       <div className="flex flex-col items-end gap-1 shrink-0">
-                        <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset capitalize ${getTypeStyles(doc.type).badge}`}>
+                        <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset capitalize ${getTypeBadgeClass(doc.type)}`}>
                           {getLabel(DOCUMENT_TYPE_LABELS, doc.type, doc.type)}
                         </span>
                         {isArchive && (
