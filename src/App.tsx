@@ -8,6 +8,8 @@ import Review from './pages/Review';
 import ReviewSession from './pages/ReviewSession';
 import Tools from './pages/Tools';
 import Settings from './pages/Settings';
+import Tags from './pages/Tags';
+import TagDetail from './pages/TagDetail';
 
 const router = createBrowserRouter([
   {
@@ -21,6 +23,14 @@ const router = createBrowserRouter([
       {
         path: '/review',
         element: <Review />,
+      },
+      {
+        path: '/tags',
+        element: <Tags />,
+      },
+      {
+        path: '/tags/:tag',
+        element: <TagDetail />,
       },
       {
         path: '/tools',
