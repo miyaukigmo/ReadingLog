@@ -220,7 +220,7 @@ export default function DocumentDetail() {
       <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-20">
         <div className="mx-auto max-w-5xl px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors">
+            <button onClick={() => navigate('/')} className="p-2 -ml-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors" title="メイン画面に戻る">
               <ChevronLeft className="h-5 w-5" />
             </button>
             <h1 className="text-lg font-bold text-gray-900 line-clamp-1">
