@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { importSchema } from '@/types/schema';
-import type { ImportData } from '@/types/schema';
+import type { ImportData, ImportDataV11 } from '@/types/schema';
 import { Upload, FileJson, AlertCircle, CheckCircle2, ChevronLeft } from 'lucide-react';
 
 export default function Import() {
   const [jsonText, setJsonText] = useState('');
-  const [previewData, setPreviewData] = useState<ImportData | null>(null);
+  const [previewData, setPreviewData] = useState<ImportDataV11 | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const navigate = useNavigate();
@@ -53,7 +53,39 @@ export default function Import() {
         throw new Error(`データの形式が正しくありません: ${issues}`);
       }
 
-      setPreviewData(result.data);
+      // V1.0 の場合は V1.1 へ正規化する
+      let normalizedData: ImportDataV11;
+      
+      if (result.data.schemaVersion === '1.0') {
+        const v1Doc = result.data.document;
+        normalizedData = {
+          schemaVersion: '1.1',
+          document: {
+            purpose: 'study',
+            type: v1Doc.type,
+            title: v1Doc.title,
+            authors: v1Doc.authors,
+            categories: v1Doc.categories,
+            summary: v1Doc.summary,
+            notebookLmReport: v1Doc.notebookLmReport,
+            keyPoints: v1Doc.keyPoints,
+            sections: v1Doc.sections.map(sec => ({
+              title: sec.title,
+              summary: sec.summary,
+              archiveReport: '',
+              originalText: '',
+              keywords: [],
+              items: sec.items
+            })),
+            connections: []
+          }
+        };
+      } else {
+        // V1.1
+        normalizedData = result.data as ImportDataV11;
+      }
+
+      setPreviewData(normalizedData);
     } catch (err: any) {
       if (err instanceof SyntaxError) {
         setError('有効なJSONではありません');
@@ -73,11 +105,13 @@ export default function Import() {
     try {
       // 1. Documents 登録
       const { data: docData, error: docError } = await supabase.from('documents').insert({
+        purpose: previewData.document.purpose,
         type: previewData.document.type,
         title: previewData.document.title,
         authors: previewData.document.authors,
         categories: previewData.document.categories,
         summary: previewData.document.summary,
+        notebook_lm_report: previewData.document.notebookLmReport,
         key_points: previewData.document.keyPoints,
       }).select('id').single();
 
@@ -91,6 +125,9 @@ export default function Import() {
           document_id: docData.id,
           title: sec.title,
           summary: sec.summary,
+          original_text: sec.originalText,
+          archive_report: sec.archiveReport,
+          keywords: sec.keywords,
           sort_order: idx
         }));
 
@@ -124,6 +161,25 @@ export default function Import() {
         }
       }
 
+      // 4. Connections 登録
+      const connectionsCount = previewData.document.connections?.length || 0;
+      if (connectionsCount > 0) {
+        const connsToInsert = previewData.document.connections.map((conn, idx) => ({
+          document_id: docData.id,
+          type: conn.type,
+          title: conn.title,
+          connection: conn.connection,
+          question: conn.question,
+          starting_points: conn.startingPoints,
+          search_keywords: conn.searchKeywords,
+          basis: conn.basis,
+          sort_order: idx
+        }));
+        
+        const { error: connError } = await supabase.from('connections').insert(connsToInsert);
+        if (connError) throw connError;
+      }
+
       // 成功時
       navigate('/');
 
@@ -143,6 +199,7 @@ export default function Import() {
   let sectionCount = 0;
   let itemCount = 0;
   let reviewEnabledCount = 0;
+  let connectionCount = 0;
   
   if (previewData) {
     sectionCount = previewData.document.sections.length;
@@ -152,6 +209,7 @@ export default function Import() {
         if (item.reviewEnabled) reviewEnabledCount++;
       });
     });
+    connectionCount = previewData.document.connections?.length || 0;
   }
 
   return (
@@ -180,7 +238,7 @@ export default function Import() {
             </label>
             <textarea
               className="w-full h-64 rounded-md border border-gray-300 p-3 text-sm font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              placeholder='{"schemaVersion": "1.0", "document": { ... }}'
+              placeholder='{"schemaVersion": "1.1", "document": { ... }}'
               value={jsonText}
               onChange={handleTextChange}
             />
@@ -228,10 +286,14 @@ export default function Import() {
                 <dd className="mt-1 text-sm text-gray-900">{previewData.document.authors.join(', ') || '-'}</dd>
               </div>
               <div>
+                <dt className="text-sm font-medium text-gray-500">用途 (Purpose)</dt>
+                <dd className="mt-1 text-sm font-semibold text-blue-600 capitalize">{previewData.document.purpose}</dd>
+              </div>
+              <div>
                 <dt className="text-sm font-medium text-gray-500">タイプ</dt>
                 <dd className="mt-1 text-sm text-gray-900 capitalize">{previewData.document.type}</dd>
               </div>
-              <div>
+              <div className="sm:col-span-2">
                 <dt className="text-sm font-medium text-gray-500">カテゴリー</dt>
                 <dd className="mt-1 text-sm text-gray-900 flex flex-wrap gap-1">
                   {previewData.document.categories.length > 0 ? (
@@ -245,17 +307,21 @@ export default function Import() {
               </div>
             </dl>
 
-            <div className="grid grid-cols-3 gap-4 border-t border-gray-100 pt-6">
+            <div className="grid grid-cols-4 gap-4 border-t border-gray-100 pt-6">
               <div className="bg-gray-50 p-4 rounded-lg text-center">
-                <div className="text-2xl font-semibold text-gray-900">{sectionCount}</div>
+                <div className="text-xl font-semibold text-gray-900">{sectionCount}</div>
                 <div className="text-xs font-medium text-gray-500 mt-1">セクション</div>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg text-center">
-                <div className="text-2xl font-semibold text-gray-900">{itemCount}</div>
+                <div className="text-xl font-semibold text-gray-900">{itemCount}</div>
                 <div className="text-xs font-medium text-gray-500 mt-1">項目数</div>
               </div>
+              <div className="bg-gray-50 p-4 rounded-lg text-center">
+                <div className="text-xl font-semibold text-gray-900">{connectionCount}</div>
+                <div className="text-xs font-medium text-gray-500 mt-1">コネクション</div>
+              </div>
               <div className="bg-blue-50 p-4 rounded-lg text-center">
-                <div className="text-2xl font-semibold text-blue-700">{reviewEnabledCount}</div>
+                <div className="text-xl font-semibold text-blue-700">{reviewEnabledCount}</div>
                 <div className="text-xs font-medium text-blue-600 mt-1">復習対象</div>
               </div>
             </div>

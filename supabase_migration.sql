@@ -1,60 +1,26 @@
--- 既存のテーブルをリセット（もし既に作成済みの場合）
-drop table if exists public.review_logs cascade;
-drop table if exists public.connections cascade;
-drop table if exists public.items cascade;
-drop table if exists public.sections cascade;
-drop table if exists public.documents cascade;
+-- 1. documentsテーブルの変更
+alter table public.documents add column if not exists purpose text not null default 'study';
+alter table public.documents drop constraint if exists documents_purpose_check;
+alter table public.documents add constraint documents_purpose_check check (purpose in ('study', 'archive'));
 
--- Enable UUID extension
-create extension if not exists "uuid-ossp";
+alter table public.documents drop constraint if exists documents_type_check;
+alter table public.documents add constraint documents_type_check check (type in ('book', 'paper', 'article', 'report', 'lecture', 'novel', 'essay', 'anime_impressions', 'personal_writing', 'other'));
 
--- documents table
-create table public.documents (
-  id uuid primary key default uuid_generate_v4(),
-  purpose text not null default 'study' check (purpose in ('study', 'archive')),
-  type text not null check (type in ('book', 'paper', 'article', 'report', 'lecture', 'novel', 'essay', 'anime_impressions', 'personal_writing', 'other')),
-  title text not null,
-  authors jsonb default '[]'::jsonb,
-  categories jsonb default '[]'::jsonb,
-  summary text,
-  notebook_lm_report text,
-  key_points jsonb default '[]'::jsonb,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
+-- 既存のdocumentsをstudyとして更新
+update public.documents set purpose = 'study' where purpose != 'study';
 
--- sections table
-create table public.sections (
-  id uuid primary key default uuid_generate_v4(),
-  document_id uuid not null references public.documents(id) on delete cascade,
-  title text not null,
-  summary text,
-  original_text text not null default '',
-  archive_report text not null default '',
-  keywords jsonb not null default '[]'::jsonb,
-  sort_order integer not null,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
+-- 2. sectionsテーブルの変更
+alter table public.sections add column if not exists original_text text not null default '';
+alter table public.sections add column if not exists archive_report text not null default '';
+alter table public.sections add column if not exists keywords jsonb not null default '[]'::jsonb;
 
--- items table
-create table public.items (
-  id uuid primary key default uuid_generate_v4(),
-  section_id uuid not null references public.sections(id) on delete cascade,
-  title text not null,
-  summary text,
-  detail text,
-  review_prompt text,
-  review_enabled boolean default true,
-  keywords jsonb default '[]'::jsonb,
-  sort_order integer not null,
-  verification_status text default 'unverified' check (verification_status in ('unverified', 'verified')),
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
+-- 既存のsectionsに初期値を設定
+update public.sections set original_text = '' where original_text is null;
+update public.sections set archive_report = '' where archive_report is null;
+update public.sections set keywords = '[]'::jsonb where keywords is null;
 
--- connections table
-create table public.connections (
+-- 3. connectionsテーブルの作成
+create table if not exists public.connections (
   id uuid primary key default uuid_generate_v4(),
   document_id uuid not null references public.documents(id) on delete cascade,
   type text not null check (type in ('field', 'concept', 'person', 'book', 'paper', 'research_topic', 'work', 'other')),
@@ -69,39 +35,12 @@ create table public.connections (
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- review_logs table
-create table public.review_logs (
-  id uuid primary key default uuid_generate_v4(),
-  item_id uuid not null references public.items(id) on delete cascade,
-  result text not null check (result in ('understood', 'uncertain', 'forgot')),
-  reviewed_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
--- Enable RLS
-alter table public.documents enable row level security;
-alter table public.sections enable row level security;
-alter table public.items enable row level security;
 alter table public.connections enable row level security;
-alter table public.review_logs enable row level security;
-
--- 認証なしで全ての操作を許可するポリシー（MVP・個人用）
-create policy "Allow all actions for anon users on documents" on public.documents
-  for all using (true) with check (true);
-
-create policy "Allow all actions for anon users on sections" on public.sections
-  for all using (true) with check (true);
-
-create policy "Allow all actions for anon users on items" on public.items
-  for all using (true) with check (true);
 
 create policy "Allow all actions for anon users on connections" on public.connections
   for all using (true) with check (true);
 
-create policy "Allow all actions for anon users on review_logs" on public.review_logs
-  for all using (true) with check (true);
-
--- バックアップ復元用RPC
--- トランザクションとして実行され、エラー発生時は自動的にロールバックされます
+-- 4. 復元用RPCの更新
 create or replace function public.restore_full_backup(backup_data jsonb)
 returns jsonb
 language plpgsql
