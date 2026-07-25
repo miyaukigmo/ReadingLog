@@ -107,16 +107,6 @@ export default function Dashboard() {
     return Array.from(cats);
   }, [documents]);
 
-  const allAuthors = useMemo(() => {
-    const authors = new Set<string>();
-    documents.forEach(doc => {
-      if (Array.isArray(doc.authors)) {
-        doc.authors.forEach((a: string) => authors.add(a));
-      }
-    });
-    return Array.from(authors).sort();
-  }, [documents]);
-
   const filteredDocuments = useMemo(() => {
     return documents.filter(doc => {
       // 検索用の一時データをクリア
@@ -493,7 +483,7 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    {group.docs.map((doc, idx) => (
+                    {group.docs.map((doc) => (
                       <div key={doc.id}>
                         {renderList(doc)}
                       </div>
