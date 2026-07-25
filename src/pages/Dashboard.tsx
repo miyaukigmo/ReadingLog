@@ -1,8 +1,40 @@
 import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Search, BookOpen, FileText, Database, Link as LinkIcon, FileCheck } from 'lucide-react';
+import { Plus, Search, BookOpen, FileText, Database, Link as LinkIcon, FileCheck, LayoutGrid, List } from 'lucide-react';
 import { DOCUMENT_TYPE_LABELS, getLabel, getTypeBadgeClass, getTypeCardClass } from '@/lib/constants';
+
+// キーワードの前後を切り出してスニペットを作る関数
+function getSnippet(text: string, query: string, maxLength: number = 80): string {
+  if (!text) return '';
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return text.substring(0, maxLength) + (text.length > maxLength ? '...' : '');
+
+  const start = Math.max(0, idx - 20);
+  const end = Math.min(text.length, idx + query.length + 60);
+  let snippet = text.substring(start, end);
+  
+  if (start > 0) snippet = '...' + snippet;
+  if (end < text.length) snippet = snippet + '...';
+  
+  return snippet;
+}
+
+// 検索キーワードをハイライトするコンポーネント
+const HighlightText = ({ text, query }: { text: string; query: string }) => {
+  if (!query || !text) return <>{text}</>;
+  
+  const regex = new RegExp(`(${query})`, 'gi');
+  const parts = text.split(regex);
+  
+  return (
+    <>
+      {parts.map((part, i) => 
+        regex.test(part) ? <mark key={i} className="bg-yellow-200 text-gray-900 rounded-sm px-0.5">{part}</mark> : <span key={i}>{part}</span>
+      )}
+    </>
+  );
+};
 
 export default function Dashboard() {
   const [documents, setDocuments] = useState<any[]>([]);
@@ -15,10 +47,21 @@ export default function Dashboard() {
   const selectedPurpose = searchParams.get('purpose') || 'all';
   const selectedType = searchParams.get('type') || 'all';
   const selectedCategory = searchParams.get('category') || 'all';
+  const groupBy = searchParams.get('groupBy') || 'none';
+
+  // 表示形式（ローカルストレージ）
+  const [viewMode, setViewMode] = useState<'card' | 'list'>(() => {
+    return (localStorage.getItem('readingLogViewMode') as 'card' | 'list') || 'card';
+  });
+
+  const handleViewModeChange = (mode: 'card' | 'list') => {
+    setViewMode(mode);
+    localStorage.setItem('readingLogViewMode', mode);
+  };
 
   const updateSearchParam = (key: string, value: string) => {
     const nextParams = new URLSearchParams(searchParams);
-    if (value === 'all' || !value) {
+    if (value === 'all' || value === 'none' || !value) {
       nextParams.delete(key);
     } else {
       nextParams.set(key, value);
@@ -64,8 +107,21 @@ export default function Dashboard() {
     return Array.from(cats);
   }, [documents]);
 
+  const allAuthors = useMemo(() => {
+    const authors = new Set<string>();
+    documents.forEach(doc => {
+      if (Array.isArray(doc.authors)) {
+        doc.authors.forEach((a: string) => authors.add(a));
+      }
+    });
+    return Array.from(authors).sort();
+  }, [documents]);
+
   const filteredDocuments = useMemo(() => {
     return documents.filter(doc => {
+      // 検索用の一時データをクリア
+      doc._searchMatch = null;
+
       // purpose絞り込み
       if (selectedPurpose !== 'all' && doc.purpose !== selectedPurpose) return false;
       // タイプ絞り込み
@@ -77,40 +133,238 @@ export default function Dashboard() {
 
       const q = searchQuery.toLowerCase();
       
-      if (doc.title?.toLowerCase().includes(q)) return true;
-      if (doc.summary?.toLowerCase().includes(q)) return true;
-      if (doc.notebook_lm_report?.toLowerCase().includes(q)) return true;
-      if (doc.purpose?.toLowerCase().includes(q)) return true;
-      if (doc.authors?.some((a: string) => a.toLowerCase().includes(q))) return true;
-      if (doc.categories?.some((c: string) => c.toLowerCase().includes(q))) return true;
-      if (doc.key_points?.some((k: string) => k.toLowerCase().includes(q))) return true;
+      const checkMatch = (text: string | null | undefined, fieldName: string): boolean => {
+        if (!text) return false;
+        if (text.toLowerCase().includes(q)) {
+          doc._searchMatch = { field: fieldName, snippet: getSnippet(text, q) };
+          return true;
+        }
+        return false;
+      };
+
+      if (checkMatch(doc.title, 'タイトル')) return true;
+      if (checkMatch(doc.summary, '資料のまとめ')) return true;
+      if (checkMatch(doc.notebook_lm_report, 'NotebookLMレポート')) return true;
+      if (checkMatch(doc.purpose, '用途')) return true;
+      
+      if (doc.authors?.some((a: string) => checkMatch(a, '著者'))) return true;
+      if (doc.categories?.some((c: string) => checkMatch(c, 'カテゴリー'))) return true;
+      if (doc.key_points?.some((k: string) => checkMatch(k, '重要ポイント'))) return true;
 
       for (const sec of (doc.sections || [])) {
-        if (sec.title?.toLowerCase().includes(q)) return true;
-        if (sec.summary?.toLowerCase().includes(q)) return true;
-        if (sec.original_text?.toLowerCase().includes(q)) return true;
-        if (sec.archive_report?.toLowerCase().includes(q)) return true;
-        if (sec.keywords?.some((k: string) => k.toLowerCase().includes(q))) return true;
+        if (checkMatch(sec.title, 'セクション名')) return true;
+        if (checkMatch(sec.summary, 'セクション概要')) return true;
+        if (checkMatch(sec.original_text, '原文')) return true;
+        if (checkMatch(sec.archive_report, '詳しい整理')) return true;
+        if (sec.keywords?.some((k: string) => checkMatch(k, 'キーワード'))) return true;
         for (const item of (sec.items || [])) {
-          if (item.title?.toLowerCase().includes(q)) return true;
-          if (item.summary?.toLowerCase().includes(q)) return true;
-          if (item.detail?.toLowerCase().includes(q)) return true;
-          if (item.review_prompt?.toLowerCase().includes(q)) return true;
-          if (item.keywords?.some((k: string) => k.toLowerCase().includes(q))) return true;
+          if (checkMatch(item.title, '項目タイトル')) return true;
+          if (checkMatch(item.summary, '項目概要')) return true;
+          if (checkMatch(item.detail, '項目詳細')) return true;
+          if (checkMatch(item.review_prompt, '復習の問い')) return true;
+          if (item.keywords?.some((k: string) => checkMatch(k, 'キーワード'))) return true;
         }
       }
 
       for (const conn of (doc.connections || [])) {
-        if (conn.title?.toLowerCase().includes(q)) return true;
-        if (conn.connection?.toLowerCase().includes(q)) return true;
-        if (conn.question?.toLowerCase().includes(q)) return true;
-        if (conn.search_keywords?.some((k: string) => k.toLowerCase().includes(q))) return true;
-        if (conn.starting_points?.some((k: string) => k.toLowerCase().includes(q))) return true;
+        if (checkMatch(conn.title, 'つながりタイトル')) return true;
+        if (checkMatch(conn.connection, 'つながりの理由')) return true;
+        if (checkMatch(conn.question, 'つながりの問い')) return true;
+        if (conn.search_keywords?.some((k: string) => checkMatch(k, '検索キーワード'))) return true;
+        if (conn.starting_points?.some((k: string) => checkMatch(k, '入口の概念'))) return true;
       }
 
       return false;
     });
   }, [documents, searchQuery, selectedPurpose, selectedType, selectedCategory]);
+
+  const groupedDocuments = useMemo(() => {
+    if (groupBy === 'none') {
+      return [{ groupName: null, docs: filteredDocuments }];
+    }
+
+    const groups: Record<string, any[]> = {};
+
+    filteredDocuments.forEach(doc => {
+      let keys: string[] = [];
+      if (groupBy === 'type') {
+        keys = [getLabel(DOCUMENT_TYPE_LABELS, doc.type, doc.type)];
+      } else if (groupBy === 'author') {
+        keys = doc.authors && doc.authors.length > 0 ? doc.authors : ['著者不明'];
+      }
+
+      keys.forEach(key => {
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(doc);
+      });
+    });
+
+    // グループ内のソート（タイトル順）
+    Object.keys(groups).forEach(key => {
+      groups[key].sort((a, b) => (a.title || '').localeCompare(b.title || '', 'ja'));
+    });
+
+    // グループ自体のソート（あいうえお順）
+    return Object.keys(groups)
+      .sort((a, b) => a.localeCompare(b, 'ja'))
+      .map(key => ({
+        groupName: key,
+        docs: groups[key]
+      }));
+  }, [filteredDocuments, groupBy]);
+
+
+  const renderCard = (doc: any) => {
+    const isArchive = doc.purpose === 'archive';
+    
+    let totalItems = 0;
+    let reviewItems = 0;
+    let verifiedItems = 0;
+    let originalTextCount = 0;
+    let archiveReportCount = 0;
+    const sectionCount = doc.sections?.length || 0;
+    const connectionCount = doc.connections?.length || 0;
+    
+    doc.sections?.forEach((sec: any) => {
+      if (sec.original_text) originalTextCount++;
+      if (sec.archive_report) archiveReportCount++;
+      
+      totalItems += (sec.items || []).length;
+      sec.items?.forEach((item: any) => {
+        if (item.review_enabled) reviewItems++;
+        if (item.verification_status === 'verified') verifiedItems++;
+      });
+    });
+
+    return (
+      <div
+        key={doc.id}
+        onClick={() => navigate(`/document/${doc.id}`)}
+        className={`group relative flex flex-col justify-between rounded-xl bg-white p-4 sm:p-6 shadow-sm border transition-all cursor-pointer hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] ${getTypeCardClass(doc.type)}`}
+      >
+        <div>
+          <div className="flex items-start justify-between gap-4">
+            <h2 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-gray-600 transition-colors">
+              <HighlightText text={doc.title} query={searchQuery} />
+            </h2>
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset capitalize ${getTypeBadgeClass(doc.type)}`}>
+                {getLabel(DOCUMENT_TYPE_LABELS, doc.type, doc.type)}
+              </span>
+              {isArchive && (
+                <span className="inline-flex items-center rounded-md bg-purple-100 text-purple-700 px-2 py-0.5 text-[10px] font-bold">
+                  文章アーカイブ
+                </span>
+              )}
+            </div>
+          </div>
+          {doc.authors && doc.authors.length > 0 && (
+            <p className="mt-2 text-sm text-gray-500 line-clamp-1">
+              <HighlightText text={doc.authors.join(', ')} query={searchQuery} />
+            </p>
+          )}
+          
+          {doc._searchMatch && doc._searchMatch.field !== 'タイトル' && doc._searchMatch.field !== '著者' && (
+            <div className="mt-3 bg-yellow-50/50 p-2 rounded border border-yellow-100 text-xs text-gray-700">
+              <span className="font-bold text-yellow-800 mr-1">[{doc._searchMatch.field}]</span>
+              <HighlightText text={doc._searchMatch.snippet} query={searchQuery} />
+            </div>
+          )}
+          
+          <div className="mt-4 flex flex-wrap gap-1">
+            {doc.categories?.slice(0, 3).map((c: string, i: number) => (
+              <span key={i} className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+                {c}
+              </span>
+            ))}
+            {doc.categories?.length > 3 && (
+              <span className="inline-flex items-center rounded-full bg-gray-50 px-2 py-0.5 text-xs font-medium text-gray-600">
+                +{doc.categories.length - 3}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {isArchive ? (
+          <div className="mt-6 flex flex-wrap gap-3 border-t border-gray-100 pt-4 text-gray-600">
+            <div className="flex items-center gap-1" title="セクション数">
+              <Database className="h-4 w-4" />
+              <span className="text-sm font-semibold">{sectionCount}</span>
+            </div>
+            <div className="flex items-center gap-1" title="原文ありセクション数">
+              <FileText className="h-4 w-4" />
+              <span className="text-sm font-semibold">{originalTextCount}</span>
+            </div>
+            <div className="flex items-center gap-1" title="詳しい整理ありセクション数">
+              <FileCheck className="h-4 w-4" />
+              <span className="text-sm font-semibold">{archiveReportCount}</span>
+            </div>
+            <div className="flex items-center gap-1" title="Connections件数">
+              <LinkIcon className="h-4 w-4" />
+              <span className="text-sm font-semibold">{connectionCount}</span>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-6 grid grid-cols-3 gap-2 border-t border-gray-100 pt-4">
+            <div className="text-center">
+              <div className="text-sm font-semibold text-gray-900">{totalItems}</div>
+              <div className="text-[10px] text-gray-500 uppercase">項目</div>
+            </div>
+            <div className="text-center">
+              <div className="text-sm font-semibold text-gray-900">{reviewItems}</div>
+              <div className="text-[10px] text-gray-500 uppercase">復習対象</div>
+            </div>
+            <div className="text-center">
+              <div className="text-sm font-semibold text-gray-900">{verifiedItems}</div>
+              <div className="text-[10px] text-gray-500 uppercase">確認済み</div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderList = (doc: any) => {
+    const isArchive = doc.purpose === 'archive';
+    
+    return (
+      <div
+        key={doc.id}
+        onClick={() => navigate(`/document/${doc.id}`)}
+        className="group flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 sm:p-4 bg-white border-b border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
+      >
+        <div className="flex items-center gap-3 overflow-hidden flex-1">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 flex-1 min-w-0">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold ring-1 ring-inset capitalize ${getTypeBadgeClass(doc.type)}`}>
+                {getLabel(DOCUMENT_TYPE_LABELS, doc.type, doc.type)}
+              </span>
+              {isArchive && (
+                <span className="inline-flex items-center rounded-md bg-purple-100 text-purple-700 px-1.5 py-0.5 text-[10px] font-bold shrink-0">
+                  アーカイブ
+                </span>
+              )}
+            </div>
+            <h2 className="text-sm font-bold text-gray-900 truncate">
+              <HighlightText text={doc.title} query={searchQuery} />
+            </h2>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:items-end gap-1 shrink-0 ml-10 sm:ml-0">
+          <div className="text-xs text-gray-500 truncate max-w-[200px]">
+            {doc.authors?.join(', ')}
+          </div>
+          {doc._searchMatch && doc._searchMatch.field !== 'タイトル' && (
+            <div className="text-[10px] text-gray-500 truncate max-w-[250px]">
+              <span className="font-bold text-yellow-600 mr-1">[{doc._searchMatch.field}]</span>
+              <HighlightText text={doc._searchMatch.snippet} query={searchQuery} />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
@@ -133,8 +387,9 @@ export default function Dashboard() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mb-6">
-          <div className="flex flex-col sm:flex-row gap-3 items-center bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100">
+        <div className="mb-6 space-y-3">
+          {/* 検索・絞り込み */}
+          <div className="flex flex-col lg:flex-row gap-3 items-start lg:items-center bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100">
             <div className="relative flex-1 w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
@@ -146,7 +401,7 @@ export default function Dashboard() {
               />
             </div>
             
-            <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 shrink-0 scrollbar-hide">
+            <div className="flex flex-wrap gap-2 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0 shrink-0 scrollbar-hide">
               <select
                 className="block w-[130px] sm:w-36 shrink-0 rounded-md border-0 py-2 pl-3 pr-8 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-gray-900 text-xs sm:text-sm sm:leading-6 bg-white"
                 value={selectedPurpose}
@@ -180,6 +435,38 @@ export default function Dashboard() {
               </select>
             </div>
           </div>
+
+          {/* 表示形式・グループ化 */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-2 px-4 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center gap-3 w-full sm:w-auto text-sm text-gray-700 font-medium">
+              グループ化:
+              <select
+                className="block rounded-md border-0 py-1.5 pl-3 pr-8 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-gray-900 text-sm bg-white"
+                value={groupBy}
+                onChange={(e) => updateSearchParam('groupBy', e.target.value)}
+              >
+                <option value="none">なし（作成順）</option>
+                <option value="type">種類でグループ</option>
+                <option value="author">作者でグループ</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg w-full sm:w-auto shrink-0">
+              <button
+                onClick={() => handleViewModeChange('card')}
+                className={`flex-1 sm:flex-none flex items-center justify-center p-1.5 rounded-md transition-colors ${viewMode === 'card' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                title="カード表示"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => handleViewModeChange('list')}
+                className={`flex-1 sm:flex-none flex items-center justify-center p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                title="リスト表示"
+              >
+                <List className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         </div>
 
         {loading ? (
@@ -189,110 +476,32 @@ export default function Dashboard() {
             該当する資料がありません。
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredDocuments.map(doc => {
-              const isArchive = doc.purpose === 'archive';
-              
-              // 集計処理
-              let totalItems = 0;
-              let reviewItems = 0;
-              let verifiedItems = 0;
-              let originalTextCount = 0;
-              let archiveReportCount = 0;
-              const sectionCount = doc.sections?.length || 0;
-              const connectionCount = doc.connections?.length || 0;
-              
-              doc.sections?.forEach((sec: any) => {
-                if (sec.original_text) originalTextCount++;
-                if (sec.archive_report) archiveReportCount++;
-                
-                totalItems += (sec.items || []).length;
-                sec.items?.forEach((item: any) => {
-                  if (item.review_enabled) reviewItems++;
-                  if (item.verification_status === 'verified') verifiedItems++;
-                });
-              });
-
-              return (
-                <div
-                  key={doc.id}
-                  onClick={() => navigate(`/document/${doc.id}`)}
-                  className={`group relative flex flex-col justify-between rounded-xl bg-white p-4 sm:p-6 shadow-sm border transition-all cursor-pointer hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] ${getTypeCardClass(doc.type)}`}
-                >
-                  <div>
-                    <div className="flex items-start justify-between gap-4">
-                      <h2 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-gray-600 transition-colors">
-                        {doc.title}
-                      </h2>
-                      <div className="flex flex-col items-end gap-1 shrink-0">
-                        <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset capitalize ${getTypeBadgeClass(doc.type)}`}>
-                          {getLabel(DOCUMENT_TYPE_LABELS, doc.type, doc.type)}
-                        </span>
-                        {isArchive && (
-                          <span className="inline-flex items-center rounded-md bg-purple-100 text-purple-700 px-2 py-0.5 text-[10px] font-bold">
-                            文章アーカイブ
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    {doc.authors && doc.authors.length > 0 && (
-                      <p className="mt-2 text-sm text-gray-500 line-clamp-1">
-                        {doc.authors.join(', ')}
-                      </p>
-                    )}
-                    
-                    <div className="mt-4 flex flex-wrap gap-1">
-                      {doc.categories?.slice(0, 3).map((c: string, i: number) => (
-                        <span key={i} className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
-                          {c}
-                        </span>
-                      ))}
-                      {doc.categories?.length > 3 && (
-                        <span className="inline-flex items-center rounded-full bg-gray-50 px-2 py-0.5 text-xs font-medium text-gray-600">
-                          +{doc.categories.length - 3}
-                        </span>
-                      )}
-                    </div>
+          <div className="space-y-10">
+            {groupedDocuments.map((group, groupIdx) => (
+              <div key={groupIdx}>
+                {group.groupName && (
+                  <h3 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-200 pb-2 flex items-center gap-2">
+                    {group.groupName}
+                    <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                      {group.docs.length}
+                    </span>
+                  </h3>
+                )}
+                {viewMode === 'card' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {group.docs.map(doc => renderCard(doc))}
                   </div>
-
-                  {isArchive ? (
-                    <div className="mt-6 flex flex-wrap gap-3 border-t border-gray-100 pt-4 text-gray-600">
-                      <div className="flex items-center gap-1" title="セクション数">
-                        <Database className="h-4 w-4" />
-                        <span className="text-sm font-semibold">{sectionCount}</span>
+                ) : (
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    {group.docs.map((doc, idx) => (
+                      <div key={doc.id}>
+                        {renderList(doc)}
                       </div>
-                      <div className="flex items-center gap-1" title="原文ありセクション数">
-                        <FileText className="h-4 w-4" />
-                        <span className="text-sm font-semibold">{originalTextCount}</span>
-                      </div>
-                      <div className="flex items-center gap-1" title="詳しい整理ありセクション数">
-                        <FileCheck className="h-4 w-4" />
-                        <span className="text-sm font-semibold">{archiveReportCount}</span>
-                      </div>
-                      <div className="flex items-center gap-1" title="Connections件数">
-                        <LinkIcon className="h-4 w-4" />
-                        <span className="text-sm font-semibold">{connectionCount}</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-6 grid grid-cols-3 gap-2 border-t border-gray-100 pt-4">
-                      <div className="text-center">
-                        <div className="text-sm font-semibold text-gray-900">{totalItems}</div>
-                        <div className="text-[10px] text-gray-500 uppercase">項目</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-sm font-semibold text-gray-900">{reviewItems}</div>
-                        <div className="text-[10px] text-gray-500 uppercase">復習対象</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-sm font-semibold text-gray-900">{verifiedItems}</div>
-                        <div className="text-[10px] text-gray-500 uppercase">確認済み</div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </main>
