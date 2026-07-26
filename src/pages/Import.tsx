@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { importSchema } from '@/types/schema';
-import type { ImportDataV12 } from '@/types/schema';
+import type { ImportDataV13 } from '@/types/schema';
 import { Upload, FileJson, AlertCircle, CheckCircle2, ChevronLeft } from 'lucide-react';
 
 export default function Import() {
   const [jsonText, setJsonText] = useState('');
-  const [previewData, setPreviewData] = useState<ImportDataV12 | null>(null);
+  const [previewData, setPreviewData] = useState<ImportDataV13 | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const navigate = useNavigate();
@@ -53,13 +53,13 @@ export default function Import() {
         throw new Error(`データの形式が正しくありません: ${issues}`);
       }
 
-      // V1.0, V1.1 の場合は V1.2 へ正規化する
-      let normalizedData: ImportDataV12;
+      // V1.0, V1.1, V1.2 の場合は V1.3 へ正規化する
+      let normalizedData: ImportDataV13;
       
       if (result.data.schemaVersion === '1.0' || result.data.schemaVersion === '1.1') {
         const doc = result.data.document as any;
         normalizedData = {
-          schemaVersion: '1.2',
+          schemaVersion: '1.3',
           document: {
             purpose: doc.purpose || 'study',
             type: doc.type,
@@ -78,12 +78,21 @@ export default function Import() {
               items: sec.items || []
             })),
             connections: doc.connections || [],
-            timelineEntries: []
+            timelineEntries: [],
+            peopleEntries: []
+          }
+        };
+      } else if (result.data.schemaVersion === '1.2') {
+        normalizedData = {
+          schemaVersion: '1.3',
+          document: {
+            ...(result.data.document as any),
+            peopleEntries: []
           }
         };
       } else {
-        // V1.2
-        normalizedData = result.data as ImportDataV12;
+        // V1.3
+        normalizedData = result.data as ImportDataV13;
       }
 
       setPreviewData(normalizedData);
@@ -220,6 +229,44 @@ export default function Import() {
         if (timelineError) throw timelineError;
       }
 
+      // 6. People Entries 登録
+      const peopleCount = previewData.document.peopleEntries?.length || 0;
+      if (peopleCount > 0) {
+        const peopleToInsert = previewData.document.peopleEntries!.map((entry) => ({
+          document_id: docData.id,
+          name: entry.name,
+          source_name_expressions: entry.sourceNameExpressions,
+          original_name: entry.originalName,
+          entity_kind: entry.entityKind,
+          person_type: entry.personType,
+          fields: entry.fields,
+          importance: entry.importance,
+          mention_types: entry.mentionTypes,
+          display_summary: entry.displaySummary,
+          source_summary: entry.sourceSummary,
+          role_in_document: entry.roleInDocument,
+          key_ideas_or_actions: entry.keyIdeasOrActions,
+          source_works: entry.sourceWorks,
+          external_profile: entry.externalProfile,
+          life_span_label: entry.lifeSpanLabel,
+          birth_year: entry.birthYear,
+          death_year: entry.deathYear,
+          life_date_certainty: entry.lifeDateCertainty,
+          activity_regions: entry.activityRegions,
+          external_key_works: entry.externalKeyWorks,
+          source_locations: entry.sourceLocations,
+          selection_reason: entry.selectionReason,
+          identity_note: entry.identityNote,
+          external_sources: entry.externalSources,
+          processing_status: entry.processingStatus,
+          source_verification_status: entry.sourceVerificationStatus,
+          external_verification_status: entry.externalVerificationStatus
+        }));
+        
+        const { error: peopleError } = await supabase.from('person_entries').insert(peopleToInsert);
+        if (peopleError) throw peopleError;
+      }
+
       // 成功時
       navigate('/');
 
@@ -241,6 +288,7 @@ export default function Import() {
   let reviewEnabledCount = 0;
   let connectionCount = 0;
   let timelineCount = 0;
+  let peopleCount = 0;
   
   if (previewData) {
     sectionCount = previewData.document.sections.length;
@@ -252,6 +300,7 @@ export default function Import() {
     });
     connectionCount = previewData.document.connections?.length || 0;
     timelineCount = previewData.document.timelineEntries?.length || 0;
+    peopleCount = previewData.document.peopleEntries?.length || 0;
   }
 
   return (
@@ -365,6 +414,10 @@ export default function Import() {
               <div className="bg-gray-50 p-4 rounded-lg text-center">
                 <div className="text-xl font-semibold text-gray-900">{timelineCount}</div>
                 <div className="text-xs font-medium text-gray-500 mt-1">年代項目</div>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg text-center">
+                <div className="text-xl font-semibold text-gray-900">{peopleCount}</div>
+                <div className="text-xs font-medium text-gray-500 mt-1">人物項目</div>
               </div>
               <div className="bg-blue-50 p-4 rounded-lg text-center">
                 <div className="text-xl font-semibold text-blue-700">{reviewEnabledCount}</div>

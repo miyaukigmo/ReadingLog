@@ -6,6 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import { DOCUMENT_TYPE_LABELS, CONNECTION_TYPE_LABELS, CONNECTION_BASIS_LABELS, getLabel, getTypeBadgeClass } from '@/lib/constants';
 import { HighlightText } from '@/components/HighlightText';
 import { TimelineTab } from '@/components/TimelineTab';
+import { PeopleTab } from '@/components/PeopleTab';
 
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>();
@@ -89,7 +90,8 @@ export default function DocumentDetail() {
           items (*)
         ),
         connections (*),
-        timeline_entries (*)
+        timeline_entries (*),
+        person_entries (*)
       `)
       .eq('id', id)
       .single();
@@ -165,6 +167,19 @@ export default function DocumentDetail() {
       );
     }
 
+    if (newDoc.person_entries) {
+      newDoc.person_entries = newDoc.person_entries.filter((entry: any) => 
+        matches(entry.name) || matches(entry.original_name) || matches(entry.display_summary) || 
+        matches(entry.source_summary) || matches(entry.role_in_document) || 
+        matches(entry.external_profile) || matches(entry.life_span_label) || matches(entry.identity_note) || 
+        matchesArray(entry.source_name_expressions) || matchesArray(entry.key_ideas_or_actions) || 
+        matchesArray(entry.source_works) || matchesArray(entry.activity_regions) || 
+        matchesArray(entry.source_locations) || 
+        matchesArray(entry.external_key_works?.map((w: any) => w.title)) || 
+        matchesArray(entry.external_sources?.map((s: any) => `${s.title} ${s.publisher}`))
+      );
+    }
+
     return newDoc;
   }, [doc, searchQuery]);
 
@@ -232,7 +247,7 @@ export default function DocumentDetail() {
     if (!doc) return;
     
     const exportData = {
-      schemaVersion: "1.2",
+      schemaVersion: "1.3",
       document: {
         purpose: doc.purpose || "study",
         type: doc.type,
@@ -292,6 +307,35 @@ export default function DocumentDetail() {
           fields: entry.fields || [],
           externalSources: entry.external_sources || [],
           dateNote: entry.date_note || "",
+          processingStatus: entry.processing_status || "ai_processed",
+          sourceVerificationStatus: entry.source_verification_status || "unverified",
+          externalVerificationStatus: entry.external_verification_status || "unverified"
+        })),
+        peopleEntries: (doc.person_entries || []).map((entry: any) => ({
+          name: entry.name,
+          sourceNameExpressions: entry.source_name_expressions || [],
+          originalName: entry.original_name || "",
+          entityKind: entry.entity_kind,
+          personType: entry.person_type,
+          fields: entry.fields || [],
+          importance: entry.importance,
+          mentionTypes: entry.mention_types || [],
+          displaySummary: entry.display_summary || "",
+          sourceSummary: entry.source_summary || "",
+          roleInDocument: entry.role_in_document || "",
+          keyIdeasOrActions: entry.key_ideas_or_actions || [],
+          sourceWorks: entry.source_works || [],
+          externalProfile: entry.external_profile || "",
+          lifeSpanLabel: entry.life_span_label || "",
+          birthYear: entry.birth_year,
+          deathYear: entry.death_year,
+          lifeDateCertainty: entry.life_date_certainty,
+          activityRegions: entry.activity_regions || [],
+          externalKeyWorks: entry.external_key_works || [],
+          sourceLocations: entry.source_locations || [],
+          selectionReason: entry.selection_reason || "",
+          identityNote: entry.identity_note || "",
+          externalSources: entry.external_sources || [],
           processingStatus: entry.processing_status || "ai_processed",
           sourceVerificationStatus: entry.source_verification_status || "unverified",
           externalVerificationStatus: entry.external_verification_status || "unverified"
@@ -369,6 +413,12 @@ export default function DocumentDetail() {
             className={`px-4 py-3 text-sm font-bold whitespace-nowrap transition-colors border-b-2 ${currentTab === 'timeline' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
           >
             年代
+          </button>
+          <button
+            onClick={() => setCurrentTab('people')}
+            className={`px-4 py-3 text-sm font-bold whitespace-nowrap transition-colors border-b-2 ${currentTab === 'people' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          >
+            人物
           </button>
           {isArchive && (
             <button
@@ -766,6 +816,16 @@ export default function DocumentDetail() {
               sourceVerificationStatus: entry.source_verification_status || "unverified",
               externalVerificationStatus: entry.external_verification_status || "unverified"
             }))}
+            onRefresh={fetchDocument}
+          />
+        )}
+
+        {/* 人物タブ */}
+        {currentTab === 'people' && (
+          <PeopleTab 
+            documentId={doc.id}
+            documentTitle={doc.title}
+            entries={(filteredDoc.person_entries || [])}
             onRefresh={fetchDocument}
           />
         )}

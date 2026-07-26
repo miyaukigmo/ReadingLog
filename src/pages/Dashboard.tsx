@@ -70,7 +70,8 @@ export default function Dashboard() {
           *,
           items (*)
         ),
-        connections (*)
+        connections (*),
+        person_entries (*)
       `)
       .order('created_at', { ascending: false });
 
@@ -149,6 +150,24 @@ export default function Dashboard() {
         if (conn.starting_points?.some((k: string) => checkMatch(k, '入口の概念'))) return true;
       }
 
+      for (const person of (doc.person_entries || [])) {
+        if (checkMatch(person.name, '人物名')) return true;
+        if (person.source_name_expressions?.some((n: string) => checkMatch(n, '資料内の名前表記'))) return true;
+        if (checkMatch(person.original_name, '原語名')) return true;
+        if (checkMatch(person.display_summary, '人物概要')) return true;
+        if (checkMatch(person.source_summary, '本書での扱い')) return true;
+        if (checkMatch(person.role_in_document, '本書での役割')) return true;
+        if (person.key_ideas_or_actions?.some((i: string) => checkMatch(i, '本書内で重要な思想・行動'))) return true;
+        if (person.source_works?.some((w: string) => checkMatch(w, '本書で言及された作品'))) return true;
+        if (checkMatch(person.external_profile, '外部プロフィール')) return true;
+        if (checkMatch(person.life_span_label, '生没年ラベル')) return true;
+        if (person.activity_regions?.some((r: string) => checkMatch(r, '活動地域'))) return true;
+        if (person.external_key_works?.some((w: any) => checkMatch(w.title, '外部代表作'))) return true;
+        if (person.source_locations?.some((l: string) => checkMatch(l, '登場箇所'))) return true;
+        if (checkMatch(person.identity_note, '人物同定上の注意')) return true;
+        if (person.external_sources?.some((s: any) => checkMatch(s.title, '外部出典タイトル') || checkMatch(s.publisher, '外部出典の出版元'))) return true;
+      }
+
       return false;
     });
   }, [documents, searchQuery, selectedPurpose, selectedType, selectedCategory]);
@@ -189,6 +208,14 @@ export default function Dashboard() {
   }, [filteredDocuments, groupBy]);
 
 
+  const getTabFromSearchMatch = (field?: string) => {
+    if (!field) return '';
+    if (['セクション名', 'セクション概要', '原文', '詳しい整理', 'キーワード', '項目タイトル', '項目概要', '項目詳細', '復習の問い'].includes(field)) return '?tab=sections';
+    if (['つながりタイトル', 'つながりの理由', 'つながりの問い', '検索キーワード', '入口の概念'].includes(field)) return '?tab=connections';
+    if (['人物名', '資料内の名前表記', '原語名', '人物概要', '本書での扱い', '本書での役割', '本書内で重要な思想・行動', '本書で言及された作品', '外部プロフィール', '生没年ラベル', '活動地域', '外部代表作', '登場箇所', '人物同定上の注意', '外部出典タイトル', '外部出典の出版元'].includes(field)) return '?tab=people';
+    return '?tab=overview';
+  };
+
   const renderCard = (doc: any) => {
     const isArchive = doc.purpose === 'archive';
     
@@ -214,7 +241,7 @@ export default function Dashboard() {
     return (
       <div
         key={doc.id}
-        onClick={() => navigate(`/document/${doc.id}`)}
+        onClick={() => navigate(`/document/${doc.id}${getTabFromSearchMatch(doc._searchMatch?.field)}`)}
         className={`group relative flex flex-col justify-between rounded-xl bg-white p-4 sm:p-6 shadow-sm border transition-all cursor-pointer hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] ${getTypeCardClass(doc.type)}`}
       >
         <div>
@@ -305,7 +332,7 @@ export default function Dashboard() {
     return (
       <div
         key={doc.id}
-        onClick={() => navigate(`/document/${doc.id}`)}
+        onClick={() => navigate(`/document/${doc.id}${getTabFromSearchMatch(doc._searchMatch?.field)}`)}
         className="group flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 sm:p-4 bg-white border-b border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
       >
         <div className="flex items-center gap-3 overflow-hidden flex-1">

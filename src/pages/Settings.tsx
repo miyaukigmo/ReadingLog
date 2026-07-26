@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { backupSchema } from '@/types/schema';
-import type { BackupDataV12 } from '@/types/schema';
+import type { BackupDataV13 } from '@/types/schema';
 import { Settings as SettingsIcon, Download, HardDrive, RefreshCw, Volume2, Upload, AlertCircle, CheckCircle2, FileJson } from 'lucide-react';
 
 export default function Settings() {
@@ -12,7 +12,7 @@ export default function Settings() {
 
   // 復元用の状態
   const [, setRestoreFile] = useState<File | null>(null);
-  const [restorePreview, setRestorePreview] = useState<BackupDataV12 | null>(null);
+  const [restorePreview, setRestorePreview] = useState<BackupDataV13 | null>(null);
   const [restoreError, setRestoreError] = useState<string | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
 
@@ -35,13 +35,14 @@ export default function Settings() {
     
     try {
       // 全データの取得
-      const [docsRes, secsRes, itemsRes, connsRes, logsRes, timelineRes] = await Promise.all([
+      const [docsRes, secsRes, itemsRes, connsRes, logsRes, timelineRes, peopleRes] = await Promise.all([
         supabase.from('documents').select('*'),
         supabase.from('sections').select('*'),
         supabase.from('items').select('*'),
         supabase.from('connections').select('*'),
         supabase.from('review_logs').select('*'),
-        supabase.from('timeline_entries').select('*')
+        supabase.from('timeline_entries').select('*'),
+        supabase.from('person_entries').select('*')
       ]);
 
       if (docsRes.error) throw docsRes.error;
@@ -49,10 +50,11 @@ export default function Settings() {
       if (itemsRes.error) throw itemsRes.error;
       if (connsRes.error) throw connsRes.error;
       if (logsRes.error) throw logsRes.error;
+      if (peopleRes.error) throw peopleRes.error;
 
       const exportData = {
         format: "readinglog-backup" as const,
-        backupVersion: "1.2" as const,
+        backupVersion: "1.3" as const,
         exportedAt: new Date().toISOString(),
         data: {
           documents: docsRes.data || [],
@@ -60,7 +62,8 @@ export default function Settings() {
           items: itemsRes.data || [],
           connections: connsRes.data || [],
           reviewLogs: logsRes.data || [],
-          timelineEntries: timelineRes.data || []
+          timelineEntries: timelineRes.data || [],
+          peopleEntries: peopleRes.data || []
         }
       };
 
@@ -114,13 +117,13 @@ export default function Settings() {
           throw new Error(`バックアップデータの形式が正しくありません: ${issues}`);
         }
 
-        // v1.0, v1.1からの正規化
-        let normalizedData: BackupDataV12;
+        // v1.0, v1.1, v1.2からの正規化
+        let normalizedData: BackupDataV13;
         if (result.data.backupVersion === '1.0' || result.data.backupVersion === '1.1') {
           const d = result.data.data as any;
           normalizedData = {
             format: "readinglog-backup",
-            backupVersion: "1.2",
+            backupVersion: "1.3",
             exportedAt: result.data.exportedAt,
             data: {
               documents: d.documents.map((doc: any) => ({ ...doc, purpose: doc.purpose || 'study' })),
@@ -133,11 +136,22 @@ export default function Settings() {
               items: d.items,
               connections: d.connections || [],
               reviewLogs: d.reviewLogs || [],
-              timelineEntries: []
+              timelineEntries: [],
+              peopleEntries: []
+            }
+          };
+        } else if (result.data.backupVersion === '1.2') {
+          normalizedData = {
+            format: "readinglog-backup",
+            backupVersion: "1.3",
+            exportedAt: result.data.exportedAt,
+            data: {
+              ...(result.data.data as any),
+              peopleEntries: []
             }
           };
         } else {
-          normalizedData = result.data as BackupDataV12;
+          normalizedData = result.data as BackupDataV13;
         }
 
         setRestorePreview(normalizedData);
@@ -191,6 +205,7 @@ export default function Settings() {
       const resultConns = data.connections;
       const resultLogs = data.reviewLogs;
       const resultTimelines = data.timelineEntries;
+      const resultPeople = data.peopleEntries;
 
       const expectedDocs = restorePreview.data.documents.length;
       const expectedSecs = restorePreview.data.sections.length;
@@ -198,6 +213,7 @@ export default function Settings() {
       const expectedConns = restorePreview.data.connections.length;
       const expectedLogs = restorePreview.data.reviewLogs.length;
       const expectedTimelines = restorePreview.data.timelineEntries.length;
+      const expectedPeople = restorePreview.data.peopleEntries.length;
 
       if (
         resultDocs !== expectedDocs ||
@@ -205,7 +221,8 @@ export default function Settings() {
         resultItems !== expectedItems ||
         resultConns !== expectedConns ||
         resultLogs !== expectedLogs ||
-        resultTimelines !== expectedTimelines
+        resultTimelines !== expectedTimelines ||
+        resultPeople !== expectedPeople
       ) {
         throw new Error("復元されたデータ件数がバックアップ内の件数と一致しませんでした。");
       }
@@ -322,6 +339,10 @@ export default function Settings() {
                     <div className="text-center">
                       <div className="text-lg font-bold text-gray-900">{restorePreview.data.timelineEntries.length}</div>
                       <div className="text-[10px] text-gray-500">年代</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-gray-900">{restorePreview.data.peopleEntries.length}</div>
+                      <div className="text-[10px] text-gray-500">人物</div>
                     </div>
                     <div className="text-center">
                       <div className="text-lg font-bold text-gray-900">{restorePreview.data.reviewLogs.length}</div>

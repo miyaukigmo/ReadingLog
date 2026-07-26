@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { timelineEntrySchema } from './timeline';
 
+
 // ==========================================
 // 共通 / V1.0用の基本スキーマ
 // ==========================================
@@ -87,13 +88,68 @@ export const importSchemaV12 = z.object({
   document: documentSchemaV12,
 }).strict();
 
+// V1.3 backup schema
+const v13PersonEntrySchema = z.object({
+  id: z.string().uuid().optional(),
+  documentId: z.string().uuid().optional(),
+  name: z.string(),
+  sourceNameExpressions: z.array(z.string()).nullable().optional(),
+  originalName: z.string().nullable().optional(),
+  entityKind: z.string(),
+  personType: z.string(),
+  fields: z.array(z.string()).nullable().optional(),
+  importance: z.string(),
+  mentionTypes: z.array(z.string()).nullable().optional(),
+  displaySummary: z.string().nullable().optional(),
+  sourceSummary: z.string().nullable().optional(),
+  roleInDocument: z.string().nullable().optional(),
+  keyIdeasOrActions: z.array(z.string()).nullable().optional(),
+  sourceWorks: z.array(z.string()).nullable().optional(),
+  externalProfile: z.string().nullable().optional(),
+  lifeSpanLabel: z.string().nullable().optional(),
+  birthYear: z.number().nullable().optional(),
+  deathYear: z.number().nullable().optional(),
+  lifeDateCertainty: z.string(),
+  activityRegions: z.array(z.string()).nullable().optional(),
+  externalKeyWorks: z.array(z.object({
+    title: z.string(),
+    year: z.number().nullable().optional()
+  })).nullable().optional(),
+  sourceLocations: z.array(z.string()).nullable().optional(),
+  selectionReason: z.string().nullable().optional(),
+  identityNote: z.string().nullable().optional(),
+  externalSources: z.array(z.object({
+    title: z.string(),
+    publisher: z.string().nullable().optional(),
+    url: z.string().nullable().optional()
+  })).nullable().optional(),
+  processingStatus: z.string().nullable().optional(),
+  sourceVerificationStatus: z.string().nullable().optional(),
+  externalVerificationStatus: z.string().nullable().optional(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional()
+});
+
+// ==========================================
+// V1.3用のスキーマ (人物索引対応)
+// ==========================================
+export const documentSchemaV13 = documentSchemaV12.extend({
+  peopleEntries: z.array(v13PersonEntrySchema).optional().default([]),
+});
+
+export const importSchemaV13 = z.object({
+  schemaVersion: z.literal('1.3'),
+  document: documentSchemaV13,
+}).strict();
+
 export type ImportDataV1 = z.infer<typeof importSchemaV1>;
 export type ImportDataV11 = z.infer<typeof importSchemaV11>;
 export type ImportDataV12 = z.infer<typeof importSchemaV12>;
+export type ImportDataV13 = z.infer<typeof importSchemaV13>;
 export type ConnectionData = z.infer<typeof connectionSchema>;
 
 // インポートデータ統合型
-export const importSchema = z.union([importSchemaV1, importSchemaV11, importSchemaV12]);
+export const importSchema = z.union([importSchemaV1, importSchemaV11, importSchemaV12, importSchemaV13]);
 export type ImportData = z.infer<typeof importSchema>;
 
 // ==========================================
@@ -265,8 +321,18 @@ export const backupSchemaV12 = z.object({
   }),
 });
 
-export const backupSchema = z.union([backupSchemaV1, backupSchemaV11, backupSchemaV12]);
+export const backupSchemaV13 = z.object({
+  format: z.literal('readinglog-backup'),
+  backupVersion: z.literal('1.3'),
+  exportedAt: z.string(),
+  data: backupSchemaV12.shape.data.extend({
+    peopleEntries: z.array(v13PersonEntrySchema).optional().default([]),
+  }),
+});
+
+export const backupSchema = z.union([backupSchemaV1, backupSchemaV11, backupSchemaV12, backupSchemaV13]);
 export type BackupDataV1 = z.infer<typeof backupSchemaV1>;
 export type BackupDataV11 = z.infer<typeof backupSchemaV11>;
 export type BackupDataV12 = z.infer<typeof backupSchemaV12>;
+export type BackupDataV13 = z.infer<typeof backupSchemaV13>;
 export type BackupData = z.infer<typeof backupSchema>;

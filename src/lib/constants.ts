@@ -59,26 +59,75 @@ export const REGIONS = [
 ] as const;
 
 export const FIELDS = [
-  '政治・法律',
-  '社会・経済',
   '哲学・思想',
   '宗教',
-  '文学・芸術',
-  '科学・技術',
+  '文学',
+  '美術',
+  '音楽',
+  '演劇・映像',
+  '政治・法律',
+  '社会・経済',
+  '歴史',
+  '心理',
   '教育',
-  '戦争・外交',
-  'その他',
+  '科学・技術',
+  'その他'
 ] as const;
 
 export const TIMELINE_EVENT_TYPE_LABELS: Record<string, string> = {
-  historical_event: '歴史的事件',
-  war_diplomacy: '戦争・外交',
-  institution: '制度・組織',
-  social_economic: '社会・経済',
-  intellectual_cultural_movement: '思想・学問・文化',
-  publication: '著作・作品',
-  discovery_invention: '発見・発明',
-  other: 'その他',
+  'person_birth': '誕生',
+  'person_death': '死去',
+  'publication': '出版・発表',
+  'creation': '制作',
+  'discovery': '発見・発明',
+  'historical_event': '歴史的事件',
+  'social_movement': '社会運動',
+  'political_change': '政治的変化',
+  'war_conflict': '戦争・紛争',
+  'cultural_event': '文化的出来事',
+  'natural_disaster': '自然災害',
+  'biographical_event': '人生の出来事',
+  'other': 'その他'
+};
+
+// ==========================================
+// 人物索引関連
+// ==========================================
+
+export const ENTITY_KIND_LABELS: Record<string, string> = {
+  'historical_person': '実在・歴史上の人物',
+  'religious_figure': '宗教上の人物',
+  'mythological_figure': '神話・伝説上の人物'
+};
+
+export const PERSON_TYPE_LABELS: Record<string, string> = {
+  'philosopher_thinker': '哲学者・思想家',
+  'writer_critic': '作家・批評家',
+  'politician_activist': '政治家・社会活動家',
+  'religious_person': '宗教者',
+  'artist': '芸術家',
+  'scientist_researcher': '科学者・研究者',
+  'educator': '教育者',
+  'other': 'その他'
+};
+
+export const MENTION_TYPE_LABELS: Record<string, string> = {
+  'subject': '中心人物',
+  'discussed': '説明',
+  'quoted': '引用',
+  'cited': '参照',
+  'compared': '比較',
+  'influence': '影響',
+  'critic': '批判',
+  'context': '背景'
+};
+
+export const LIFE_DATE_CERTAINTY_LABELS: Record<string, string> = {
+  'established': '',
+  'approximate': '概算',
+  'disputed': '諸説あり',
+  'context_dependent': '文脈依存',
+  'unknown': '不明'
 };
 
 
