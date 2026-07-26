@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, ExternalLink, MapPin, Tag } from 'lucide-react';
-import { TimelineEntry } from '@/types/timeline';
+import type { TimelineEntry } from '@/types/timeline';
 import { TIMELINE_EVENT_TYPE_LABELS, getLabel } from '@/lib/constants';
 
 interface TimelineItemCardProps {

@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
-import { Upload, AlertTriangle, FileJson, Check, X, Filter } from 'lucide-react';
+import { Upload, AlertTriangle, FileJson, Check, Filter } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { TimelineEntry, timelineImportSchema, TimelineImportData } from '@/types/timeline';
+import { timelineImportSchema } from '@/types/timeline';
+import type { TimelineEntry, TimelineImportData } from '@/types/timeline';
 import { TimelineItemCard } from './TimelineItemCard';
 import { TIMELINE_EVENT_TYPE_LABELS, REGIONS, FIELDS } from '@/lib/constants';
 
@@ -98,7 +99,7 @@ export function TimelineTab({ documentId, documentTitle, entries, onRefresh }: T
       if (result.success) {
         setPreviewData(result.data);
       } else {
-        const errorMessages = result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('\n');
+        const errorMessages = result.error.issues.map((e: any) => `${e.path.join('.')}: ${e.message}`).join('\n');
         setImportError(`JSONの形式が正しくありません。\n${errorMessages}`);
       }
     } catch (e) {

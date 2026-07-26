@@ -31,11 +31,11 @@ export const timelineEntrySchema = z.object({
   externalContext: z.string().optional().default(''),
   selectionReason: z.string().optional().default(''),
   sourceLocations: z.array(z.string()).optional().default([]),
-  regions: z.array(z.enum(REGIONS as [string, ...string[]]))
+  regions: z.array(z.enum(REGIONS as unknown as [string, ...string[]]))
     .max(2, '地域タグは最大2件までです')
     .optional()
     .default([]),
-  fields: z.array(z.enum(FIELDS as [string, ...string[]]))
+  fields: z.array(z.enum(FIELDS as unknown as [string, ...string[]]))
     .max(2, '分野タグは最大2件までです')
     .optional()
     .default([]),
