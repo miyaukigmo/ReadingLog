@@ -7,13 +7,15 @@ import {
   MENTION_TYPE_LABELS
 } from '@/lib/constants';
 
-interface PeopleItemCardProps {
+export interface PeopleItemCardProps {
   item: PersonEntry;
-  onVerifySource?: (id: string, current: string) => void;
-  onVerifyExternal?: (id: string, current: string) => void;
+  documentTitle?: string;
+  documentId?: string;
+  onVerifySource?: (id: string, current: string) => Promise<void>;
+  onVerifyExternal?: (id: string, current: string) => Promise<void>;
 }
 
-export function PeopleItemCard({ item, onVerifySource, onVerifyExternal }: PeopleItemCardProps) {
+export function PeopleItemCard({ item, documentTitle, documentId, onVerifySource, onVerifyExternal }: PeopleItemCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -42,9 +44,21 @@ export function PeopleItemCard({ item, onVerifySource, onVerifyExternal }: Peopl
               </div>
             )}
           </div>
-          <span className={`shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold ${item.importance === 'major' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600'}`}>
-            {item.importance === 'major' ? '主要' : '補助'}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className={`shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold ${item.importance === 'major' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600'}`}>
+              {item.importance === 'major' ? '主要' : '補助'}
+            </span>
+            {documentTitle && documentId && (
+              <a
+                href={`/document/${documentId}?tab=people`}
+                className="shrink-0 inline-flex items-center gap-1 text-[10px] font-bold text-gray-500 hover:text-gray-900 transition-colors bg-gray-50 px-2 py-0.5 rounded border border-gray-200 hover:border-gray-300"
+                title="元の資料を開く"
+              >
+                <BookOpen className="h-3 w-3" />
+                <span className="max-w-[120px] sm:max-w-[160px] truncate">{documentTitle}</span>
+              </a>
+            )}
+          </div>
         </div>
         
         {item.display_summary && (
