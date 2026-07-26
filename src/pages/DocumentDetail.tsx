@@ -1,10 +1,11 @@
 import { useEffect, useState, useMemo } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { ChevronLeft, Edit, Download, ChevronDown, ChevronRight, CheckCircle2, Sparkles, Volume2, Square, Copy, Link as LinkIcon, Search } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { DOCUMENT_TYPE_LABELS, CONNECTION_TYPE_LABELS, CONNECTION_BASIS_LABELS, getLabel, getTypeBadgeClass } from '@/lib/constants';
 import { HighlightText } from '@/components/HighlightText';
+import { TimelineTab } from '@/components/TimelineTab';
 
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>();
@@ -18,6 +19,12 @@ export default function DocumentDetail() {
   
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const currentTab = searchParams.get('tab') || 'overview';
+  const setCurrentTab = (tab: string) => {
+    setSearchParams({ tab });
+  };
 
   useEffect(() => {
     return () => {
@@ -81,7 +88,8 @@ export default function DocumentDetail() {
           *,
           items (*)
         ),
-        connections (*)
+        connections (*),
+        timeline_entries (*)
       `)
       .eq('id', id)
       .single();
@@ -95,6 +103,12 @@ export default function DocumentDetail() {
         sec.items?.sort((a: any, b: any) => a.sort_order - b.sort_order);
       });
       data.connections?.sort((a: any, b: any) => a.sort_order - b.sort_order);
+      data.timeline_entries?.sort((a: any, b: any) => {
+        if (a.sort_year === null && b.sort_year === null) return 0;
+        if (a.sort_year === null) return 1;
+        if (b.sort_year === null) return -1;
+        return a.sort_year - b.sort_year;
+      });
 
       setDoc(data);
       const initialSecState: Record<string, boolean> = {};
@@ -142,6 +156,12 @@ export default function DocumentDetail() {
     if (newDoc.connections) {
       newDoc.connections = newDoc.connections.filter((conn: any) => 
         matches(conn.title) || matches(conn.connection) || matches(conn.question) || matchesArray(conn.starting_points) || matchesArray(conn.search_keywords)
+      );
+    }
+
+    if (newDoc.timeline_entries) {
+      newDoc.timeline_entries = newDoc.timeline_entries.filter((entry: any) => 
+        matches(entry.date_label) || matches(entry.title) || matches(entry.display_summary) || matches(entry.source_summary) || matches(entry.external_context) || matchesArray(entry.source_date_expressions) || matchesArray(entry.period_labels) || matchesArray(entry.source_locations) || matchesArray(entry.external_sources?.map((s: any) => `${s.title} ${s.publisher}`))
       );
     }
 
@@ -212,7 +232,7 @@ export default function DocumentDetail() {
     if (!doc) return;
     
     const exportData = {
-      schemaVersion: "1.1",
+      schemaVersion: "1.2",
       document: {
         purpose: doc.purpose || "study",
         type: doc.type,
@@ -245,6 +265,36 @@ export default function DocumentDetail() {
           startingPoints: conn.starting_points || [],
           searchKeywords: conn.search_keywords || [],
           basis: conn.basis || "inferred"
+        })),
+        timelineEntries: (doc.timeline_entries || []).map((entry: any) => ({
+          dateLabel: entry.date_label,
+          sourceDateExpressions: entry.source_date_expressions || [],
+          startYear: entry.start_year,
+          startMonth: entry.start_month,
+          startDay: entry.start_day,
+          endYear: entry.end_year,
+          endMonth: entry.end_month,
+          endDay: entry.end_day,
+          sortYear: entry.sort_year,
+          precision: entry.precision,
+          dateSource: entry.date_source,
+          dateCertainty: entry.date_certainty,
+          periodLabels: entry.period_labels || [],
+          title: entry.title,
+          eventType: entry.event_type,
+          importance: entry.importance,
+          displaySummary: entry.display_summary || "",
+          sourceSummary: entry.source_summary || "",
+          externalContext: entry.external_context || "",
+          selectionReason: entry.selection_reason || "",
+          sourceLocations: entry.source_locations || [],
+          regions: entry.regions || [],
+          fields: entry.fields || [],
+          externalSources: entry.external_sources || [],
+          dateNote: entry.date_note || "",
+          processingStatus: entry.processing_status || "ai_processed",
+          sourceVerificationStatus: entry.source_verification_status || "unverified",
+          externalVerificationStatus: entry.external_verification_status || "unverified"
         }))
       }
     };
@@ -299,7 +349,39 @@ export default function DocumentDetail() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:px-8 space-y-8">
+      {/* メインタブナビゲーション */}
+      <div className="bg-white border-b border-gray-200 mb-6">
+        <div className="flex overflow-x-auto scrollbar-hide px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto">
+          <button
+            onClick={() => setCurrentTab('overview')}
+            className={`px-4 py-3 text-sm font-bold whitespace-nowrap transition-colors border-b-2 ${currentTab === 'overview' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          >
+            概要
+          </button>
+          <button
+            onClick={() => setCurrentTab('sections')}
+            className={`px-4 py-3 text-sm font-bold whitespace-nowrap transition-colors border-b-2 ${currentTab === 'sections' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          >
+            セクション
+          </button>
+          <button
+            onClick={() => setCurrentTab('timeline')}
+            className={`px-4 py-3 text-sm font-bold whitespace-nowrap transition-colors border-b-2 ${currentTab === 'timeline' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          >
+            年代
+          </button>
+          {isArchive && (
+            <button
+              onClick={() => setCurrentTab('connections')}
+              className={`px-4 py-3 text-sm font-bold whitespace-nowrap transition-colors border-b-2 ${currentTab === 'connections' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            >
+              次に学ぶ
+            </button>
+          )}
+        </div>
+      </div>
+
+      <main className="mx-auto max-w-3xl px-4 py-2 sm:px-6 lg:px-8 space-y-8">
         
         {/* 検索バー */}
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex items-center gap-3">
@@ -325,8 +407,9 @@ export default function DocumentDetail() {
         )}
 
         {/* ヘッダー情報 */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="p-4 sm:p-8">
+        {currentTab === 'overview' && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="p-4 sm:p-8">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
               <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${getTypeBadgeClass(doc.type)}`}>
                 {getLabel(DOCUMENT_TYPE_LABELS, doc.type, doc.type)}
@@ -389,8 +472,8 @@ export default function DocumentDetail() {
           </div>
         </div>
 
-        {/* NotebookLM レポート */}
-        {doc.notebook_lm_report && (
+        )}
+        {currentTab === 'overview' && doc.notebook_lm_report && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <button
               onClick={() => setShowNotebookLm(!showNotebookLm)}
@@ -427,6 +510,7 @@ export default function DocumentDetail() {
         )}
 
         {/* セクション一覧 */}
+        {currentTab === 'sections' && (
         <div className="space-y-6">
           {filteredDoc.sections?.map((sec: any) => {
             const isSecOpen = expandedSections[sec.id];
@@ -644,10 +728,21 @@ export default function DocumentDetail() {
             }
           })}
         </div>
+        )}
+
+        {/* 年代タブ */}
+        {currentTab === 'timeline' && (
+          <TimelineTab 
+            documentId={doc.id}
+            documentTitle={doc.title}
+            entries={filteredDoc.timeline_entries || []}
+            onRefresh={fetchDocument}
+          />
+        )}
 
         {/* 次に学ぶ (Connections) - archive専用 */}
-        {isArchive && filteredDoc.connections && filteredDoc.connections.length > 0 && (
-          <div className="pt-8">
+        {currentTab === 'connections' && isArchive && filteredDoc.connections && filteredDoc.connections.length > 0 && (
+          <div className="pt-2">
             <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
               <LinkIcon className="h-6 w-6 text-purple-600" />
               次に学ぶ

@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { importSchema } from '@/types/schema';
-import type { ImportDataV11 } from '@/types/schema';
+import type { ImportDataV12 } from '@/types/schema';
 import { Upload, FileJson, AlertCircle, CheckCircle2, ChevronLeft } from 'lucide-react';
 
 export default function Import() {
   const [jsonText, setJsonText] = useState('');
-  const [previewData, setPreviewData] = useState<ImportDataV11 | null>(null);
+  const [previewData, setPreviewData] = useState<ImportDataV12 | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const navigate = useNavigate();
@@ -53,36 +53,37 @@ export default function Import() {
         throw new Error(`データの形式が正しくありません: ${issues}`);
       }
 
-      // V1.0 の場合は V1.1 へ正規化する
-      let normalizedData: ImportDataV11;
+      // V1.0, V1.1 の場合は V1.2 へ正規化する
+      let normalizedData: ImportDataV12;
       
-      if (result.data.schemaVersion === '1.0') {
-        const v1Doc = result.data.document;
+      if (result.data.schemaVersion === '1.0' || result.data.schemaVersion === '1.1') {
+        const doc = result.data.document as any;
         normalizedData = {
-          schemaVersion: '1.1',
+          schemaVersion: '1.2',
           document: {
-            purpose: 'study',
-            type: v1Doc.type,
-            title: v1Doc.title,
-            authors: v1Doc.authors,
-            categories: v1Doc.categories,
-            summary: v1Doc.summary,
-            notebookLmReport: v1Doc.notebookLmReport,
-            keyPoints: v1Doc.keyPoints,
-            sections: v1Doc.sections.map(sec => ({
+            purpose: doc.purpose || 'study',
+            type: doc.type,
+            title: doc.title,
+            authors: doc.authors || [],
+            categories: doc.categories || [],
+            summary: doc.summary || '',
+            notebookLmReport: doc.notebookLmReport || '',
+            keyPoints: doc.keyPoints || [],
+            sections: (doc.sections || []).map((sec: any) => ({
               title: sec.title,
-              summary: sec.summary,
-              archiveReport: '',
-              originalText: '',
-              keywords: [],
-              items: sec.items
+              summary: sec.summary || '',
+              archiveReport: sec.archiveReport || '',
+              originalText: sec.originalText || '',
+              keywords: sec.keywords || [],
+              items: sec.items || []
             })),
-            connections: []
+            connections: doc.connections || [],
+            timelineEntries: []
           }
         };
       } else {
-        // V1.1
-        normalizedData = result.data as ImportDataV11;
+        // V1.2
+        normalizedData = result.data as ImportDataV12;
       }
 
       setPreviewData(normalizedData);
@@ -180,6 +181,45 @@ export default function Import() {
         if (connError) throw connError;
       }
 
+      // 5. Timeline Entries 登録
+      const timelineCount = previewData.document.timelineEntries?.length || 0;
+      if (timelineCount > 0) {
+        const timelineToInsert = previewData.document.timelineEntries.map((entry) => ({
+          document_id: docData.id,
+          date_label: entry.dateLabel,
+          source_date_expressions: entry.sourceDateExpressions,
+          start_year: entry.startYear,
+          start_month: entry.startMonth,
+          start_day: entry.startDay,
+          end_year: entry.endYear,
+          end_month: entry.endMonth,
+          end_day: entry.endDay,
+          sort_year: entry.sortYear,
+          precision: entry.precision,
+          date_source: entry.dateSource,
+          date_certainty: entry.dateCertainty,
+          period_labels: entry.periodLabels,
+          title: entry.title,
+          event_type: entry.eventType,
+          importance: entry.importance,
+          display_summary: entry.displaySummary,
+          source_summary: entry.sourceSummary,
+          external_context: entry.externalContext,
+          selection_reason: entry.selectionReason,
+          source_locations: entry.sourceLocations,
+          regions: entry.regions,
+          fields: entry.fields,
+          external_sources: entry.externalSources,
+          date_note: entry.dateNote,
+          processing_status: entry.processingStatus,
+          source_verification_status: entry.sourceVerificationStatus,
+          external_verification_status: entry.externalVerificationStatus
+        }));
+        
+        const { error: timelineError } = await supabase.from('timeline_entries').insert(timelineToInsert);
+        if (timelineError) throw timelineError;
+      }
+
       // 成功時
       navigate('/');
 
@@ -200,6 +240,7 @@ export default function Import() {
   let itemCount = 0;
   let reviewEnabledCount = 0;
   let connectionCount = 0;
+  let timelineCount = 0;
   
   if (previewData) {
     sectionCount = previewData.document.sections.length;
@@ -210,6 +251,7 @@ export default function Import() {
       });
     });
     connectionCount = previewData.document.connections?.length || 0;
+    timelineCount = previewData.document.timelineEntries?.length || 0;
   }
 
   return (
@@ -319,6 +361,10 @@ export default function Import() {
               <div className="bg-gray-50 p-4 rounded-lg text-center">
                 <div className="text-xl font-semibold text-gray-900">{connectionCount}</div>
                 <div className="text-xs font-medium text-gray-500 mt-1">コネクション</div>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg text-center">
+                <div className="text-xl font-semibold text-gray-900">{timelineCount}</div>
+                <div className="text-xs font-medium text-gray-500 mt-1">年代項目</div>
               </div>
               <div className="bg-blue-50 p-4 rounded-lg text-center">
                 <div className="text-xl font-semibold text-blue-700">{reviewEnabledCount}</div>

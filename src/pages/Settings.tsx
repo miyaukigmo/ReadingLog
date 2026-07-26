@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { backupSchema } from '@/types/schema';
-import type { BackupDataV11 } from '@/types/schema';
+import type { BackupDataV12 } from '@/types/schema';
 import { Settings as SettingsIcon, Download, HardDrive, RefreshCw, Volume2, Upload, AlertCircle, CheckCircle2, FileJson } from 'lucide-react';
 
 export default function Settings() {
@@ -12,7 +12,7 @@ export default function Settings() {
 
   // 復元用の状態
   const [, setRestoreFile] = useState<File | null>(null);
-  const [restorePreview, setRestorePreview] = useState<BackupDataV11 | null>(null);
+  const [restorePreview, setRestorePreview] = useState<BackupDataV12 | null>(null);
   const [restoreError, setRestoreError] = useState<string | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
 
@@ -35,12 +35,13 @@ export default function Settings() {
     
     try {
       // 全データの取得
-      const [docsRes, secsRes, itemsRes, connsRes, logsRes] = await Promise.all([
+      const [docsRes, secsRes, itemsRes, connsRes, logsRes, timelineRes] = await Promise.all([
         supabase.from('documents').select('*'),
         supabase.from('sections').select('*'),
         supabase.from('items').select('*'),
         supabase.from('connections').select('*'),
-        supabase.from('review_logs').select('*')
+        supabase.from('review_logs').select('*'),
+        supabase.from('timeline_entries').select('*')
       ]);
 
       if (docsRes.error) throw docsRes.error;
@@ -51,14 +52,15 @@ export default function Settings() {
 
       const exportData = {
         format: "readinglog-backup" as const,
-        backupVersion: "1.1" as const,
+        backupVersion: "1.2" as const,
         exportedAt: new Date().toISOString(),
         data: {
           documents: docsRes.data || [],
           sections: secsRes.data || [],
           items: itemsRes.data || [],
           connections: connsRes.data || [],
-          reviewLogs: logsRes.data || []
+          reviewLogs: logsRes.data || [],
+          timelineEntries: timelineRes.data || []
         }
       };
 
@@ -112,29 +114,30 @@ export default function Settings() {
           throw new Error(`バックアップデータの形式が正しくありません: ${issues}`);
         }
 
-        // v1.0からの正規化
-        let normalizedData: BackupDataV11;
-        if (result.data.backupVersion === '1.0') {
-          const d = result.data.data;
+        // v1.0, v1.1からの正規化
+        let normalizedData: BackupDataV12;
+        if (result.data.backupVersion === '1.0' || result.data.backupVersion === '1.1') {
+          const d = result.data.data as any;
           normalizedData = {
             format: "readinglog-backup",
-            backupVersion: "1.1",
+            backupVersion: "1.2",
             exportedAt: result.data.exportedAt,
             data: {
-              documents: d.documents.map(doc => ({ ...doc, purpose: 'study' })),
-              sections: d.sections.map(sec => ({
+              documents: d.documents.map((doc: any) => ({ ...doc, purpose: doc.purpose || 'study' })),
+              sections: d.sections.map((sec: any) => ({
                 ...sec,
-                original_text: '',
-                archive_report: '',
-                keywords: []
+                original_text: sec.original_text || '',
+                archive_report: sec.archive_report || '',
+                keywords: sec.keywords || []
               })),
               items: d.items,
-              connections: [],
-              reviewLogs: d.reviewLogs
+              connections: d.connections || [],
+              reviewLogs: d.reviewLogs || [],
+              timelineEntries: []
             }
           };
         } else {
-          normalizedData = result.data as BackupDataV11;
+          normalizedData = result.data as BackupDataV12;
         }
 
         setRestorePreview(normalizedData);
@@ -187,19 +190,22 @@ export default function Settings() {
       const resultItems = data.items;
       const resultConns = data.connections;
       const resultLogs = data.reviewLogs;
+      const resultTimelines = data.timelineEntries;
 
       const expectedDocs = restorePreview.data.documents.length;
       const expectedSecs = restorePreview.data.sections.length;
       const expectedItems = restorePreview.data.items.length;
       const expectedConns = restorePreview.data.connections.length;
       const expectedLogs = restorePreview.data.reviewLogs.length;
+      const expectedTimelines = restorePreview.data.timelineEntries.length;
 
       if (
         resultDocs !== expectedDocs ||
         resultSecs !== expectedSecs ||
         resultItems !== expectedItems ||
         resultConns !== expectedConns ||
-        resultLogs !== expectedLogs
+        resultLogs !== expectedLogs ||
+        resultTimelines !== expectedTimelines
       ) {
         throw new Error("復元されたデータ件数がバックアップ内の件数と一致しませんでした。");
       }
@@ -296,7 +302,7 @@ export default function Settings() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-5 gap-2 bg-white rounded-lg p-3 border border-blue-100">
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 bg-white rounded-lg p-3 border border-blue-100">
                     <div className="text-center">
                       <div className="text-lg font-bold text-gray-900">{restorePreview.data.documents.length}</div>
                       <div className="text-[10px] text-gray-500">資料</div>
@@ -312,6 +318,10 @@ export default function Settings() {
                     <div className="text-center">
                       <div className="text-lg font-bold text-gray-900">{restorePreview.data.connections.length}</div>
                       <div className="text-[10px] text-gray-500">接続</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-gray-900">{restorePreview.data.timelineEntries.length}</div>
+                      <div className="text-[10px] text-gray-500">年代</div>
                     </div>
                     <div className="text-center">
                       <div className="text-lg font-bold text-gray-900">{restorePreview.data.reviewLogs.length}</div>

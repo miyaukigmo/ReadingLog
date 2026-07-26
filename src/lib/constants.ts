@@ -39,6 +39,49 @@ export const getLabel = (record: Record<string, string>, key: string | undefined
   return record[key] || fallback;
 };
 
+// ==========================================
+// 年代 (Timeline) 関連定数
+// ==========================================
+
+export const REGIONS = [
+  '日本',
+  '東アジア',
+  '東南アジア',
+  '南アジア',
+  '中東',
+  'ヨーロッパ',
+  '北米',
+  '中南米',
+  'アフリカ',
+  'オセアニア',
+  '世界',
+  'その他',
+] as const;
+
+export const FIELDS = [
+  '政治・法律',
+  '社会・経済',
+  '哲学・思想',
+  '宗教',
+  '文学・芸術',
+  '科学・技術',
+  '教育',
+  '戦争・外交',
+  'その他',
+] as const;
+
+export const TIMELINE_EVENT_TYPE_LABELS: Record<string, string> = {
+  historical_event: '歴史的事件',
+  war_diplomacy: '戦争・外交',
+  institution: '制度・組織',
+  social_economic: '社会・経済',
+  intellectual_cultural_movement: '思想・学問・文化',
+  publication: '著作・作品',
+  discovery_invention: '発見・発明',
+  other: 'その他',
+};
+
+
 // バッジの色
 export const getTypeBadgeClass = (type: string) => {
   switch (type) {

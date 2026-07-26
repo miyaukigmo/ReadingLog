@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { timelineEntrySchema } from './timeline';
 
 // ==========================================
 // 共通 / V1.0用の基本スキーマ
@@ -74,12 +75,25 @@ export const importSchemaV11 = z.object({
   document: documentSchemaV11,
 }).strict();
 
+// ==========================================
+// V1.2用のスキーマ (年代索引対応)
+// ==========================================
+export const documentSchemaV12 = documentSchemaV11.extend({
+  timelineEntries: z.array(timelineEntrySchema).optional().default([]),
+});
+
+export const importSchemaV12 = z.object({
+  schemaVersion: z.literal('1.2'),
+  document: documentSchemaV12,
+}).strict();
+
 export type ImportDataV1 = z.infer<typeof importSchemaV1>;
 export type ImportDataV11 = z.infer<typeof importSchemaV11>;
+export type ImportDataV12 = z.infer<typeof importSchemaV12>;
 export type ConnectionData = z.infer<typeof connectionSchema>;
 
 // インポートデータ統合型
-export const importSchema = z.union([importSchemaV1, importSchemaV11]);
+export const importSchema = z.union([importSchemaV1, importSchemaV11, importSchemaV12]);
 export type ImportData = z.infer<typeof importSchema>;
 
 // ==========================================
@@ -202,7 +216,57 @@ export const backupSchemaV11 = z.object({
   })
 });
 
-export const backupSchema = z.union([backupSchemaV1, backupSchemaV11]);
+// V1.2 backup schema
+const v12TimelineEntrySchema = z.object({
+  id: z.string().uuid().optional(),
+  document_id: z.string().uuid().optional(),
+  date_label: z.string(),
+  source_date_expressions: z.array(z.string()).nullable().optional(),
+  start_year: z.number().nullable().optional(),
+  start_month: z.number().nullable().optional(),
+  start_day: z.number().nullable().optional(),
+  end_year: z.number().nullable().optional(),
+  end_month: z.number().nullable().optional(),
+  end_day: z.number().nullable().optional(),
+  sort_year: z.number().nullable().optional(),
+  precision: z.string(),
+  date_source: z.string(),
+  date_certainty: z.string(),
+  period_labels: z.array(z.string()).nullable().optional(),
+  title: z.string(),
+  event_type: z.string(),
+  importance: z.string(),
+  display_summary: z.string().nullable().optional(),
+  source_summary: z.string().nullable().optional(),
+  external_context: z.string().nullable().optional(),
+  selection_reason: z.string().nullable().optional(),
+  source_locations: z.array(z.string()).nullable().optional(),
+  regions: z.array(z.string()).nullable().optional(),
+  fields: z.array(z.string()).nullable().optional(),
+  external_sources: z.array(z.object({
+    title: z.string(),
+    publisher: z.string().nullable().optional(),
+    url: z.string().nullable().optional()
+  })).nullable().optional(),
+  date_note: z.string().nullable().optional(),
+  processing_status: z.string().nullable().optional(),
+  source_verification_status: z.string().nullable().optional(),
+  external_verification_status: z.string().nullable().optional(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional()
+});
+
+export const backupSchemaV12 = z.object({
+  format: z.literal('readinglog-backup'),
+  backupVersion: z.literal('1.2'),
+  exportedAt: z.string(),
+  data: backupSchemaV11.shape.data.extend({
+    timelineEntries: z.array(v12TimelineEntrySchema).optional().default([]),
+  }),
+});
+
+export const backupSchema = z.union([backupSchemaV1, backupSchemaV11, backupSchemaV12]);
 export type BackupDataV1 = z.infer<typeof backupSchemaV1>;
 export type BackupDataV11 = z.infer<typeof backupSchemaV11>;
+export type BackupDataV12 = z.infer<typeof backupSchemaV12>;
 export type BackupData = z.infer<typeof backupSchema>;
