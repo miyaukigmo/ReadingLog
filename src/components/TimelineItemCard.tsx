@@ -1,15 +1,18 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, ExternalLink, MapPin, Tag } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ChevronDown, ChevronUp, ExternalLink, MapPin, Tag, BookOpen } from 'lucide-react';
 import type { TimelineEntry } from '@/types/timeline';
 import { TIMELINE_EVENT_TYPE_LABELS, getLabel } from '@/lib/constants';
 
 interface TimelineItemCardProps {
   item: TimelineEntry;
+  documentTitle?: string;
+  documentId?: string;
   onVerifySource?: (id: string, current: string) => void;
   onVerifyExternal?: (id: string, current: string) => void;
 }
 
-export function TimelineItemCard({ item, onVerifySource, onVerifyExternal }: TimelineItemCardProps) {
+export function TimelineItemCard({ item, documentTitle, documentId, onVerifySource, onVerifyExternal }: TimelineItemCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -35,6 +38,12 @@ export function TimelineItemCard({ item, onVerifySource, onVerifyExternal }: Tim
         </div>
         
         <div>
+          {documentTitle && documentId && (
+            <Link to={`/document/${documentId}?tab=timeline`} className="inline-flex items-center gap-1 text-[11px] font-bold text-gray-500 hover:text-blue-600 hover:underline mb-1 transition-colors">
+              <BookOpen className="h-3 w-3" />
+              {documentTitle}
+            </Link>
+          )}
           <h4 className="text-base font-bold text-gray-900 mb-1">{item.title}</h4>
           {item.displaySummary && !expanded && (
             <p className="text-sm text-gray-600 line-clamp-2">{item.displaySummary}</p>

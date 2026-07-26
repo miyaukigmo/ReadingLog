@@ -10,6 +10,7 @@ import Tools from './pages/Tools';
 import Settings from './pages/Settings';
 import Tags from './pages/Tags';
 import TagDetail from './pages/TagDetail';
+import GlobalTimeline from './pages/GlobalTimeline';
 
 const router = createBrowserRouter([
   {
@@ -19,6 +20,10 @@ const router = createBrowserRouter([
       {
         path: '/',
         element: <Dashboard />,
+      },
+      {
+        path: '/timeline',
+        element: <GlobalTimeline />,
       },
       {
         path: '/review',
