@@ -13,10 +13,33 @@ export interface PeopleItemCardProps {
   documentId?: string;
   onVerifySource?: (id: string, current: string) => Promise<void>;
   onVerifyExternal?: (id: string, current: string) => Promise<void>;
+  hideDetails?: boolean;
+  forceExpanded?: boolean;
+  onToggleExpand?: () => void;
+  badge?: React.ReactNode;
 }
 
-export function PeopleItemCard({ item, documentTitle, documentId, onVerifySource, onVerifyExternal }: PeopleItemCardProps) {
-  const [expanded, setExpanded] = useState(false);
+export function PeopleItemCard({ 
+  item, 
+  documentTitle, 
+  documentId, 
+  onVerifySource, 
+  onVerifyExternal,
+  hideDetails = false,
+  forceExpanded,
+  onToggleExpand,
+  badge
+}: PeopleItemCardProps) {
+  const [internalExpanded, setInternalExpanded] = useState(false);
+  const expanded = forceExpanded !== undefined ? forceExpanded : internalExpanded;
+  
+  const handleToggle = () => {
+    if (onToggleExpand) {
+      onToggleExpand();
+    } else {
+      setInternalExpanded(!internalExpanded);
+    }
+  };
 
   return (
     <div className={`rounded-xl border transition-all ${expanded ? 'border-gray-300 bg-white shadow-sm' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
@@ -26,6 +49,7 @@ export function PeopleItemCard({ item, documentTitle, documentId, onVerifySource
           <div className="flex flex-col gap-1 mb-1">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-lg font-black text-gray-900 tracking-tight">{item.name}</span>
+              {badge}
               {item.original_name && (
                 <span className="text-xs font-bold text-gray-500">{item.original_name}</span>
               )}
@@ -86,22 +110,24 @@ export function PeopleItemCard({ item, documentTitle, documentId, onVerifySource
           )}
         </div>
         
-        <div className="flex justify-end mt-1">
-          <button 
-            onClick={() => setExpanded(!expanded)}
-            className="text-xs font-bold text-gray-500 hover:text-gray-700 flex items-center gap-1"
-          >
-            {expanded ? (
-              <>閉じる <ChevronUp className="h-4 w-4" /></>
-            ) : (
-              <>詳しく見る <ChevronDown className="h-4 w-4" /></>
-            )}
-          </button>
-        </div>
+        {!hideDetails && (
+          <div className="flex justify-end mt-1">
+            <button 
+              onClick={handleToggle}
+              className="text-xs font-bold text-gray-500 hover:text-gray-700 flex items-center gap-1"
+            >
+              {expanded ? (
+                <>閉じる <ChevronUp className="h-4 w-4" /></>
+              ) : (
+                <>詳しく見る <ChevronDown className="h-4 w-4" /></>
+              )}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 裏面（詳細用） */}
-      {expanded && (
+      {!hideDetails && expanded && (
         <div className="px-4 sm:px-5 pb-5 pt-4 border-t border-gray-100 bg-gray-50/50 rounded-b-xl space-y-8">
           
           {/* ======================================= */}

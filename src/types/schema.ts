@@ -100,6 +100,7 @@ const v13PersonEntrySchema = z.object({
   fields: z.array(z.string()).nullable().optional(),
   importance: z.string(),
   mentionTypes: z.array(z.string()).nullable().optional(),
+  mergeGroupId: z.string().uuid().optional().nullable(),
   displaySummary: z.string().nullable().optional(),
   sourceSummary: z.string().nullable().optional(),
   roleInDocument: z.string().nullable().optional(),

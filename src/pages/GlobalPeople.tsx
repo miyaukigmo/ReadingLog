@@ -1,14 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Users, Search, Filter, Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import type { PersonEntry } from '@/types/people';
-import { PeopleItemCard } from '@/components/PeopleItemCard';
+import { MergedPeopleCard } from '@/components/MergedPeopleCard';
+import type { MergedPersonEntry, GlobalPersonEntry } from '@/components/MergedPeopleCard';
 import { PERSON_TYPE_LABELS, ENTITY_KIND_LABELS, FIELDS } from '@/lib/constants';
 
-type GlobalPersonEntry = PersonEntry & {
-  documentId?: string;
-  documentTitle?: string;
-};
+// GlobalPersonEntry is now imported from MergedPeopleCard
 
 export default function GlobalPeople() {
   const [entries, setEntries] = useState<GlobalPersonEntry[]>([]);
@@ -24,6 +21,10 @@ export default function GlobalPeople() {
   
   // 表示モード
   const [viewMode, setViewMode] = useState<'continuous' | 'century' | 'region' | 'type' | 'field'>('continuous');
+
+  // マージ（統合）操作用ステート
+  const [isMergeMode, setIsMergeMode] = useState(false);
+  const [selectedMergeIds, setSelectedMergeIds] = useState<string[]>([]);
 
   useEffect(() => {
     fetchPeople();
@@ -68,6 +69,8 @@ export default function GlobalPeople() {
         processing_status: entry.processing_status || "ai_processed",
         source_verification_status: entry.source_verification_status || "unverified",
         external_verification_status: entry.external_verification_status || "unverified",
+        merge_group_id: entry.merge_group_id || null,
+        createdAt: entry.created_at,
         // Joinされたdocuments情報
         documentId: entry.documents?.id,
         documentTitle: entry.documents?.title
@@ -96,6 +99,61 @@ export default function GlobalPeople() {
     const newVal = current === 'verified' ? 'unverified' : 'verified';
     await supabase.from('person_entries').update({ external_verification_status: newVal }).eq('id', id);
     setEntries(prev => prev.map(e => e.id === id ? { ...e, externalVerificationStatus: newVal as any } : e));
+  };
+
+  const handleToggleSelectForMerge = (id: string) => {
+    setSelectedMergeIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleExecuteMerge = async () => {
+    if (selectedMergeIds.length < 2) return;
+    setIsLoading(true);
+    try {
+      const newMergeId = crypto.randomUUID();
+      const { error: mergeError } = await supabase
+        .from('person_entries')
+        .update({ merge_group_id: newMergeId })
+        .in('id', selectedMergeIds);
+
+      if (mergeError) throw mergeError;
+
+      // ローカルstate更新
+      setEntries(prev => prev.map(e => 
+        selectedMergeIds.includes(e.id!) ? { ...e, merge_group_id: newMergeId } : e
+      ));
+      setSelectedMergeIds([]);
+      setIsMergeMode(false);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || '統合に失敗しました');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleExecuteUnmerge = async (groupId: string) => {
+    if (!window.confirm('この統合を解除して、元の個別データに戻しますか？')) return;
+    setIsLoading(true);
+    try {
+      const { error: unmergeError } = await supabase
+        .from('person_entries')
+        .update({ merge_group_id: null })
+        .eq('merge_group_id', groupId);
+
+      if (unmergeError) throw unmergeError;
+
+      // ローカルstate更新
+      setEntries(prev => prev.map(e => 
+        e.merge_group_id === groupId ? { ...e, merge_group_id: null } : e
+      ));
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || '統合解除に失敗しました');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // フィルタリング処理
@@ -127,11 +185,52 @@ export default function GlobalPeople() {
     });
   }, [entries, searchQuery, importanceFilter, entityKindFilter, personTypeFilter, fieldFilter]);
 
+  // 統合（マージ）処理
+  const mergedEntries = useMemo(() => {
+    const groups = new Map<string, MergedPersonEntry>();
+    const singles: MergedPersonEntry[] = [];
+    
+    // createdAt 順にソート（一番古いものが primary になるように）
+    const sorted = [...filteredEntries].sort((a, b) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return aTime - bTime;
+    });
+
+    sorted.forEach(entry => {
+      if (entry.merge_group_id) {
+        if (!groups.has(entry.merge_group_id)) {
+          groups.set(entry.merge_group_id, {
+            id: entry.merge_group_id,
+            isMerged: true,
+            primary: entry,
+            items: [entry]
+          });
+        } else {
+          groups.get(entry.merge_group_id)!.items.push(entry);
+        }
+      } else {
+        singles.push({
+          id: entry.id!,
+          isMerged: false,
+          primary: entry,
+          items: [entry]
+        });
+      }
+    });
+
+    // singles と groupsを合わせて、元の sorted 順（ここでは名前順）に並べ直す
+    const combined = [...singles, ...Array.from(groups.values())];
+    const collator = new Intl.Collator('ja');
+    combined.sort((a, b) => collator.compare(a.primary.name, b.primary.name));
+    return combined;
+  }, [filteredEntries]);
+
   // グループ化処理
   const groupedEntries = useMemo(() => {
     if (viewMode === 'continuous') return null;
     
-    type Group = { label: string; sortValue: number; items: GlobalPersonEntry[] };
+    type Group = { label: string; sortValue: number; items: MergedPersonEntry[] };
     const groupMap = new Map<string, Group>();
 
     const getOrCreateGroup = (label: string, sortValue: number) => {
@@ -141,11 +240,12 @@ export default function GlobalPeople() {
       return groupMap.get(label)!;
     };
 
-    filteredEntries.forEach(entry => {
+    mergedEntries.forEach(entry => {
+      const p = entry.primary;
       if (viewMode === 'century') {
         let centuryLabel = "時代不明";
         let sortValue = 9999;
-        const year = entry.birth_year !== null ? entry.birth_year : entry.death_year;
+        const year = p.birth_year !== null ? p.birth_year : p.death_year;
         
         if (year !== null) {
           if (year < 0) {
@@ -161,17 +261,17 @@ export default function GlobalPeople() {
         getOrCreateGroup(centuryLabel, sortValue).items.push(entry);
       } 
       else if (viewMode === 'region') {
-        const regions = entry.activity_regions && entry.activity_regions.length > 0 ? entry.activity_regions : ['地域不明'];
+        const regions = p.activity_regions && p.activity_regions.length > 0 ? p.activity_regions : ['地域不明'];
         regions.forEach((region: string) => {
           getOrCreateGroup(region, region === '地域不明' ? 9999 : 0).items.push(entry);
         });
       }
       else if (viewMode === 'type') {
-        const typeLabel = PERSON_TYPE_LABELS[entry.person_type as keyof typeof PERSON_TYPE_LABELS] || 'その他';
+        const typeLabel = PERSON_TYPE_LABELS[p.person_type as keyof typeof PERSON_TYPE_LABELS] || 'その他';
         getOrCreateGroup(typeLabel, typeLabel === 'その他' ? 9999 : 0).items.push(entry);
       }
       else if (viewMode === 'field') {
-        const fields = entry.fields && entry.fields.length > 0 ? entry.fields : ['分野不明'];
+        const fields = p.fields && p.fields.length > 0 ? p.fields : ['分野不明'];
         fields.forEach(field => {
           getOrCreateGroup(field, field === '分野不明' ? 9999 : 0).items.push(entry);
         });
@@ -300,8 +400,35 @@ export default function GlobalPeople() {
             ))}
           </select>
 
-          <div className="ml-auto text-xs font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
-            {filteredEntries.length} 件
+          <div className="ml-auto flex items-center gap-2">
+            {!isMergeMode ? (
+              <button 
+                onClick={() => { setIsMergeMode(true); setSelectedMergeIds([]); }}
+                className="text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors"
+              >
+                人物をまとめる
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-gray-500">{selectedMergeIds.length}件選択中</span>
+                <button 
+                  onClick={() => setIsMergeMode(false)}
+                  className="text-xs font-bold text-gray-600 bg-gray-100 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  キャンセル
+                </button>
+                <button 
+                  onClick={handleExecuteMerge}
+                  disabled={selectedMergeIds.length < 2 || isLoading}
+                  className="text-xs font-bold text-white bg-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  選択した人物を一体化する
+                </button>
+              </div>
+            )}
+            <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
+              {mergedEntries.length} 人
+            </div>
           </div>
         </div>
       </div>
@@ -326,17 +453,19 @@ export default function GlobalPeople() {
             <>
               {viewMode === 'continuous' && (
                 <div className="grid grid-cols-1 gap-4">
-                  {filteredEntries.length === 0 && (
+                  {mergedEntries.length === 0 && (
                     <div className="text-center py-10 text-gray-500 text-sm">
                       条件に一致する人物が見つかりませんでした。
                     </div>
                   )}
-                  {filteredEntries.map((item, idx) => (
-                    <PeopleItemCard 
-                      key={item.id || idx} 
-                      item={item} 
-                      documentTitle={item.documentTitle}
-                      documentId={item.documentId}
+                  {mergedEntries.map((mergedItem) => (
+                    <MergedPeopleCard 
+                      key={mergedItem.id} 
+                      mergedItem={mergedItem}
+                      isMergeMode={isMergeMode}
+                      isSelected={selectedMergeIds.includes(mergedItem.primary.id!)}
+                      onToggleSelect={handleToggleSelectForMerge}
+                      onUnmerge={handleExecuteUnmerge}
                       onVerifySource={handleVerifySource}
                       onVerifyExternal={handleVerifyExternal}
                     />
@@ -362,12 +491,14 @@ export default function GlobalPeople() {
                       </div>
                       
                       <div className="grid grid-cols-1 gap-4">
-                        {group.items.map((item, idx) => (
-                          <PeopleItemCard 
-                            key={`${group.label}-${item.id || idx}`} 
-                            item={item} 
-                            documentTitle={item.documentTitle}
-                            documentId={item.documentId}
+                        {group.items.map((mergedItem) => (
+                          <MergedPeopleCard 
+                            key={`${group.label}-${mergedItem.id}`} 
+                            mergedItem={mergedItem}
+                            isMergeMode={isMergeMode}
+                            isSelected={selectedMergeIds.includes(mergedItem.primary.id!)}
+                            onToggleSelect={handleToggleSelectForMerge}
+                            onUnmerge={handleExecuteUnmerge}
                             onVerifySource={handleVerifySource}
                             onVerifyExternal={handleVerifyExternal}
                           />

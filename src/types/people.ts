@@ -23,6 +23,7 @@ export const personEntrySchema = z.object({
   mention_types: z.array(z.enum([
     'subject', 'discussed', 'quoted', 'cited', 'compared', 'influence', 'critic', 'context'
   ])).max(2, '登場方法は最大2件です').default([]),
+  merge_group_id: z.string().uuid().optional().nullable(),
   display_summary: z.string().default(''),
   source_summary: z.string().default(''),
   role_in_document: z.string().default(''),
@@ -79,6 +80,7 @@ export const peopleImportSchema = z.object({
     mentionTypes: z.array(z.enum([
       'subject', 'discussed', 'quoted', 'cited', 'compared', 'influence', 'critic', 'context'
     ])).max(2, '登場方法は最大2件です').default([]),
+    mergeGroupId: z.string().uuid().optional().nullable(),
     displaySummary: z.string().default(''),
     sourceSummary: z.string().default(''),
     roleInDocument: z.string().default(''),
