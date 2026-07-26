@@ -182,7 +182,7 @@ export function PeopleTab({ documentId, documentTitle, entries, onRefresh }: Peo
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             {filteredAndSortedEntries.map((entry, idx) => (
               <PeopleItemCard 
                 key={entry.id || idx} 
