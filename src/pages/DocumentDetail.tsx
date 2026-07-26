@@ -735,7 +735,37 @@ export default function DocumentDetail() {
           <TimelineTab 
             documentId={doc.id}
             documentTitle={doc.title}
-            entries={filteredDoc.timeline_entries || []}
+            entries={(filteredDoc.timeline_entries || []).map((entry: any) => ({
+              id: entry.id,
+              dateLabel: entry.date_label,
+              sourceDateExpressions: entry.source_date_expressions || [],
+              startYear: entry.start_year,
+              startMonth: entry.start_month,
+              startDay: entry.start_day,
+              endYear: entry.end_year,
+              endMonth: entry.end_month,
+              endDay: entry.end_day,
+              sortYear: entry.sort_year,
+              precision: entry.precision,
+              dateSource: entry.date_source,
+              dateCertainty: entry.date_certainty,
+              periodLabels: entry.period_labels || [],
+              title: entry.title,
+              eventType: entry.event_type,
+              importance: entry.importance,
+              displaySummary: entry.display_summary || "",
+              sourceSummary: entry.source_summary || "",
+              externalContext: entry.external_context || "",
+              selectionReason: entry.selection_reason || "",
+              sourceLocations: entry.source_locations || [],
+              regions: entry.regions || [],
+              fields: entry.fields || [],
+              externalSources: entry.external_sources || [],
+              dateNote: entry.date_note || "",
+              processingStatus: entry.processing_status || "ai_processed",
+              sourceVerificationStatus: entry.source_verification_status || "unverified",
+              externalVerificationStatus: entry.external_verification_status || "unverified"
+            }))}
             onRefresh={fetchDocument}
           />
         )}
