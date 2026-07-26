@@ -110,8 +110,7 @@ export function PeopleItemCard({
           )}
         </div>
         
-        {!hideDetails && (
-          <div className="flex justify-end mt-1">
+        <div className="flex justify-end mt-1">
             <button 
               onClick={handleToggle}
               className="text-xs font-bold text-gray-500 hover:text-gray-700 flex items-center gap-1"
@@ -122,8 +121,7 @@ export function PeopleItemCard({
                 <>詳しく見る <ChevronDown className="h-4 w-4" /></>
               )}
             </button>
-          </div>
-        )}
+        </div>
       </div>
 
       {/* 裏面（詳細用） */}
