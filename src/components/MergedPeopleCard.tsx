@@ -45,7 +45,7 @@ export function MergedPeopleCard({
         className={`relative rounded-xl border p-4 cursor-pointer transition-all ${
           isSelected ? 'border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-500/20' : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
         }`}
-        onClick={() => onToggleSelect(mergedItem.primary.id!)}
+        onClick={() => onToggleSelect(mergedItem.id)}
       >
         <div className="flex items-center gap-3">
           <input 

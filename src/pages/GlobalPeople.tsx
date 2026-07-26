@@ -111,17 +111,25 @@ export default function GlobalPeople() {
     if (selectedMergeIds.length < 2) return;
     setIsLoading(true);
     try {
+      // selectedMergeIds は MergedPersonEntry.id (merge_group_id または item.id)
+      // 対象となるすべてのエントリのID (person_entries.id) を集める
+      const allTargetIds = mergedEntries
+        .filter(m => selectedMergeIds.includes(m.id))
+        .flatMap(m => m.items.map(item => item.id!));
+
+      if (allTargetIds.length < 2) return;
+
       const newMergeId = crypto.randomUUID();
       const { error: mergeError } = await supabase
         .from('person_entries')
         .update({ merge_group_id: newMergeId })
-        .in('id', selectedMergeIds);
+        .in('id', allTargetIds);
 
       if (mergeError) throw mergeError;
 
       // ローカルstate更新
       setEntries(prev => prev.map(e => 
-        selectedMergeIds.includes(e.id!) ? { ...e, merge_group_id: newMergeId } : e
+        allTargetIds.includes(e.id!) ? { ...e, merge_group_id: newMergeId } : e
       ));
       setSelectedMergeIds([]);
       setIsMergeMode(false);
@@ -463,7 +471,7 @@ export default function GlobalPeople() {
                       key={mergedItem.id} 
                       mergedItem={mergedItem}
                       isMergeMode={isMergeMode}
-                      isSelected={selectedMergeIds.includes(mergedItem.primary.id!)}
+                      isSelected={selectedMergeIds.includes(mergedItem.id)}
                       onToggleSelect={handleToggleSelectForMerge}
                       onUnmerge={handleExecuteUnmerge}
                       onVerifySource={handleVerifySource}
@@ -496,7 +504,7 @@ export default function GlobalPeople() {
                             key={`${group.label}-${mergedItem.id}`} 
                             mergedItem={mergedItem}
                             isMergeMode={isMergeMode}
-                            isSelected={selectedMergeIds.includes(mergedItem.primary.id!)}
+                            isSelected={selectedMergeIds.includes(mergedItem.id)}
                             onToggleSelect={handleToggleSelectForMerge}
                             onUnmerge={handleExecuteUnmerge}
                             onVerifySource={handleVerifySource}
