@@ -18,6 +18,7 @@ export interface PeopleItemCardProps {
   onToggleExpand?: () => void;
   badge?: React.ReactNode;
   onToggleHide?: () => void;
+  isHidden?: boolean;
 }
 
 export function PeopleItemCard({ 
@@ -30,7 +31,8 @@ export function PeopleItemCard({
   forceExpanded,
   onToggleExpand,
   badge,
-  onToggleHide
+  onToggleHide,
+  isHidden
 }: PeopleItemCardProps) {
   const [internalExpanded, setInternalExpanded] = useState(false);
   const expanded = forceExpanded !== undefined ? forceExpanded : internalExpanded;
@@ -127,11 +129,15 @@ export function PeopleItemCard({
             {onToggleHide && (
               <button
                 onClick={onToggleHide}
-                className="text-xs font-bold text-gray-400 hover:text-gray-600 flex items-center gap-1 bg-gray-50 hover:bg-gray-100 px-2 py-1 rounded transition-colors"
-                title="一覧から非表示にする"
+                className={`text-xs font-bold flex items-center gap-1 px-2 py-1 rounded transition-colors ${
+                  isHidden 
+                    ? 'text-blue-600 bg-blue-50 hover:bg-blue-100' 
+                    : 'text-gray-400 bg-gray-50 hover:bg-gray-100 hover:text-gray-600'
+                }`}
+                title={isHidden ? "一覧に再表示する" : "一覧から非表示にする"}
               >
                 <EyeOff className="h-3 w-3" />
-                非表示
+                {isHidden ? '再表示' : '非表示'}
               </button>
             )}
           </div>

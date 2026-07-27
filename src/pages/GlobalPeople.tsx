@@ -22,6 +22,7 @@ export default function GlobalPeople() {
   // 表示モード
   const [viewMode, setViewMode] = useState<'continuous' | 'century' | 'region' | 'type' | 'field'>('continuous');
   const [sortType, setSortType] = useState<'name' | 'birth' | 'count'>('name');
+  const [showHidden, setShowHidden] = useState(false);
 
   // マージ（統合）操作用ステート
   const [isMergeMode, setIsMergeMode] = useState(false);
@@ -181,7 +182,7 @@ export default function GlobalPeople() {
   // フィルタリング処理
   const filteredEntries = useMemo(() => {
     return entries.filter(entry => {
-      if (entry.isHiddenInGlobal) return false;
+      if (entry.isHiddenInGlobal && !showHidden) return false;
 
       // 検索
       if (searchQuery) {
@@ -387,8 +388,18 @@ export default function GlobalPeople() {
           </div>
         </div>
 
-        {/* 下段：フィルター */}
-        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
+        {/* 下段：フィルターと非表示切り替え */}
+        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-gray-100">
+          <label className="flex items-center gap-2 text-xs font-bold text-gray-500 cursor-pointer hover:text-gray-800">
+            <input
+              type="checkbox"
+              checked={showHidden}
+              onChange={(e) => setShowHidden(e.target.checked)}
+              className="rounded border-gray-300 text-gray-900 focus:ring-gray-900 h-3 w-3"
+            />
+            非表示にした項目も表示
+          </label>
+          <div className="w-px h-4 bg-gray-200 mx-1"></div>
           <Filter className="h-4 w-4 text-gray-400 mr-1" />
           
           <select 
@@ -515,6 +526,7 @@ export default function GlobalPeople() {
                       onVerifySource={handleVerifySource}
                       onVerifyExternal={handleVerifyExternal}
                       onToggleHide={() => handleToggleHide(mergedItem.items, mergedItem.primary.isHiddenInGlobal || false)}
+                      isHidden={mergedItem.primary.isHiddenInGlobal}
                     />
                   ))}
                 </div>
@@ -549,6 +561,7 @@ export default function GlobalPeople() {
                             onVerifySource={handleVerifySource}
                             onVerifyExternal={handleVerifyExternal}
                             onToggleHide={() => handleToggleHide(mergedItem.items, mergedItem.primary.isHiddenInGlobal || false)}
+                            isHidden={mergedItem.primary.isHiddenInGlobal}
                           />
                         ))}
                       </div>

@@ -11,9 +11,10 @@ interface TimelineItemCardProps {
   onVerifySource?: (id: string, current: string) => void;
   onVerifyExternal?: (id: string, current: string) => void;
   onToggleHide?: () => void;
+  isHidden?: boolean;
 }
 
-export function TimelineItemCard({ item, documentTitle, documentId, onVerifySource, onVerifyExternal, onToggleHide }: TimelineItemCardProps) {
+export function TimelineItemCard({ item, documentTitle, documentId, onVerifySource, onVerifyExternal, onToggleHide, isHidden }: TimelineItemCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -74,11 +75,15 @@ export function TimelineItemCard({ item, documentTitle, documentId, onVerifySour
             {onToggleHide && (
               <button
                 onClick={onToggleHide}
-                className="text-xs font-bold text-gray-400 hover:text-gray-600 flex items-center gap-1 bg-gray-50 hover:bg-gray-100 px-2 py-1 rounded transition-colors"
-                title="一覧から非表示にする"
+                className={`text-xs font-bold flex items-center gap-1 px-2 py-1 rounded transition-colors ${
+                  isHidden 
+                    ? 'text-blue-600 bg-blue-50 hover:bg-blue-100' 
+                    : 'text-gray-400 bg-gray-50 hover:bg-gray-100 hover:text-gray-600'
+                }`}
+                title={isHidden ? "一覧に再表示する" : "一覧から非表示にする"}
               >
                 <EyeOff className="h-3 w-3" />
-                非表示
+                {isHidden ? '再表示' : '非表示'}
               </button>
             )}
           </div>
