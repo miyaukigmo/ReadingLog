@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Search, BookOpen, FileText, Database, Link as LinkIcon, FileCheck, LayoutGrid, List } from 'lucide-react';
+import { Plus, Search, BookOpen, FileText, Database, Link as LinkIcon, FileCheck, LayoutGrid, List, ChevronDown, ChevronRight } from 'lucide-react';
 import { DOCUMENT_TYPE_LABELS, getLabel, getTypeBadgeClass, getTypeCardClass } from '@/lib/constants';
 import { HighlightText } from '@/components/HighlightText';
 
@@ -42,6 +42,15 @@ export default function Dashboard() {
   const handleViewModeChange = (mode: 'card' | 'list') => {
     setViewMode(mode);
     localStorage.setItem('readingLogViewMode', mode);
+  };
+
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+
+  const toggleGroup = (groupName: string) => {
+    setExpandedGroups(prev => ({
+      ...prev,
+      [groupName]: !prev[groupName]
+    }));
   };
 
   const updateSearchParam = (key: string, value: string) => {
@@ -440,17 +449,28 @@ export default function Dashboard() {
 
           {/* 表示形式・グループ化 */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-2 px-4 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex items-center gap-3 w-full sm:w-auto text-sm text-gray-700 font-medium">
-              グループ化:
-              <select
-                className="block rounded-md border-0 py-1.5 pl-3 pr-8 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-gray-900 text-sm bg-white"
-                value={groupBy}
-                onChange={(e) => updateSearchParam('groupBy', e.target.value)}
-              >
-                <option value="none">なし（作成順）</option>
-                <option value="type">種類でグループ</option>
-                <option value="author">作者でグループ</option>
-              </select>
+            <div className="flex items-center gap-2 w-full sm:w-auto text-sm text-gray-700 font-medium">
+              <span className="mr-1 hidden sm:inline">グループ化:</span>
+              <div className="flex bg-gray-100 p-1 rounded-lg w-full sm:w-auto">
+                <button
+                  onClick={() => updateSearchParam('groupBy', 'none')}
+                  className={`flex-1 sm:flex-none px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${groupBy === 'none' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  作成順
+                </button>
+                <button
+                  onClick={() => updateSearchParam('groupBy', 'type')}
+                  className={`flex-1 sm:flex-none px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${groupBy === 'type' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  種類
+                </button>
+                <button
+                  onClick={() => updateSearchParam('groupBy', 'author')}
+                  className={`flex-1 sm:flex-none px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${groupBy === 'author' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  作者
+                </button>
+              </div>
             </div>
             <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg w-full sm:w-auto shrink-0">
               <button
@@ -478,32 +498,52 @@ export default function Dashboard() {
             該当する資料がありません。
           </div>
         ) : (
-          <div className="space-y-10">
-            {groupedDocuments.map((group, groupIdx) => (
-              <div key={groupIdx}>
-                {group.groupName && (
-                  <h3 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-200 pb-2 flex items-center gap-2">
-                    {group.groupName}
-                    <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                      {group.docs.length}
-                    </span>
-                  </h3>
-                )}
-                {viewMode === 'card' ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {group.docs.map(doc => renderCard(doc))}
-                  </div>
-                ) : (
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    {group.docs.map((doc) => (
-                      <div key={doc.id}>
-                        {renderList(doc)}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+          <div className="space-y-6">
+            {groupedDocuments.map((group, groupIdx) => {
+              const isGrouped = group.groupName !== null;
+              const isExpanded = isGrouped ? expandedGroups[group.groupName] : true;
+
+              return (
+                <div key={groupIdx} className={isGrouped ? "bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden" : ""}>
+                  {isGrouped && (
+                    <button
+                      onClick={() => toggleGroup(group.groupName as string)}
+                      className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors text-left border-b border-gray-100"
+                    >
+                      <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                        {group.groupName}
+                        <span className="text-xs font-medium text-gray-500 bg-white border border-gray-200 px-2 py-0.5 rounded-full">
+                          {group.docs.length}
+                        </span>
+                      </h3>
+                      {isExpanded ? (
+                        <ChevronDown className="h-5 w-5 text-gray-400" />
+                      ) : (
+                        <ChevronRight className="h-5 w-5 text-gray-400" />
+                      )}
+                    </button>
+                  )}
+                  
+                  {(!isGrouped || isExpanded) && (
+                    <div className={isGrouped ? "p-4 sm:p-6 bg-gray-50/50" : ""}>
+                      {viewMode === 'card' ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {group.docs.map(doc => renderCard(doc))}
+                        </div>
+                      ) : (
+                        <div className={isGrouped ? "bg-white rounded-lg border border-gray-200 overflow-hidden" : "bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"}>
+                          {group.docs.map((doc) => (
+                            <div key={doc.id}>
+                              {renderList(doc)}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </main>
