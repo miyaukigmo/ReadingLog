@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, ExternalLink, Tag, BookOpen, EyeOff, User } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink, Tag, BookOpen, EyeOff, User, PenTool, Lightbulb, Landmark, Palette, Microscope, GraduationCap, Star } from 'lucide-react';
 import type { PersonEntry } from '@/types/people';
 import { 
   PERSON_TYPE_LABELS, 
@@ -37,6 +37,19 @@ export function PeopleItemCard({
   const [internalExpanded, setInternalExpanded] = useState(false);
   const expanded = forceExpanded !== undefined ? forceExpanded : internalExpanded;
   
+  const getAvatarIcon = (type: string) => {
+    switch (type) {
+      case 'philosopher_thinker': return <Lightbulb className="h-5 w-5" />;
+      case 'writer_critic': return <PenTool className="h-5 w-5" />;
+      case 'politician_activist': return <Landmark className="h-5 w-5" />;
+      case 'religious_person': return <Star className="h-5 w-5" />;
+      case 'artist': return <Palette className="h-5 w-5" />;
+      case 'scientist_researcher': return <Microscope className="h-5 w-5" />;
+      case 'educator': return <GraduationCap className="h-5 w-5" />;
+      default: return <User className="h-5 w-5" />;
+    }
+  };
+
   const handleToggle = () => {
     if (onToggleExpand) {
       onToggleExpand();
@@ -53,11 +66,7 @@ export function PeopleItemCard({
           <div className="flex flex-row gap-3 mb-1 items-start">
             {/* アバター/アイコン */}
             <div className="shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 border border-blue-300 flex items-center justify-center text-blue-700 shadow-sm">
-              {item.name.length > 0 ? (
-                <span className="font-black text-lg">{item.name.charAt(0)}</span>
-              ) : (
-                <User className="h-5 w-5" />
-              )}
+              {getAvatarIcon(item.person_type)}
             </div>
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2 flex-wrap">
