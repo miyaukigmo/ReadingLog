@@ -207,9 +207,13 @@ export default function Dashboard() {
       groups[key].sort((a, b) => (a.title || '').localeCompare(b.title || '', 'ja'));
     });
 
-    // グループ自体のソート（あいうえお順）
+    // グループ自体のソート（件数が多い順、同数ならあいうえお順）
     return Object.keys(groups)
-      .sort((a, b) => a.localeCompare(b, 'ja'))
+      .sort((a, b) => {
+        const countDiff = groups[b].length - groups[a].length;
+        if (countDiff !== 0) return countDiff;
+        return a.localeCompare(b, 'ja');
+      })
       .map(key => ({
         groupName: key,
         docs: groups[key]
