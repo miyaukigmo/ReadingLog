@@ -208,7 +208,7 @@ export default function GlobalPeople() {
       
       return true;
     });
-  }, [entries, searchQuery, importanceFilter, entityKindFilter, personTypeFilter, fieldFilter]);
+  }, [entries, searchQuery, importanceFilter, entityKindFilter, personTypeFilter, fieldFilter, showHidden]);
 
   // 統合（マージ）処理
   const mergedEntries = useMemo(() => {
