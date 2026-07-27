@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, ExternalLink, Tag, BookOpen } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink, Tag, BookOpen, EyeOff, User } from 'lucide-react';
 import type { PersonEntry } from '@/types/people';
 import { 
   PERSON_TYPE_LABELS, 
@@ -17,6 +17,7 @@ export interface PeopleItemCardProps {
   forceExpanded?: boolean;
   onToggleExpand?: () => void;
   badge?: React.ReactNode;
+  onToggleHide?: () => void;
 }
 
 export function PeopleItemCard({ 
@@ -28,7 +29,8 @@ export function PeopleItemCard({
   hideDetails = false,
   forceExpanded,
   onToggleExpand,
-  badge
+  badge,
+  onToggleHide
 }: PeopleItemCardProps) {
   const [internalExpanded, setInternalExpanded] = useState(false);
   const expanded = forceExpanded !== undefined ? forceExpanded : internalExpanded;
@@ -46,10 +48,19 @@ export function PeopleItemCard({
       {/* 表面（一覧用） */}
       <div className="p-4 sm:px-5 flex flex-col gap-3">
         <div className="flex justify-between items-start">
-          <div className="flex flex-col gap-1 mb-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-lg font-black text-gray-900 tracking-tight">{item.name}</span>
-              {badge}
+          <div className="flex flex-row gap-3 mb-1 items-start">
+            {/* アバター/アイコン */}
+            <div className="shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 border border-blue-300 flex items-center justify-center text-blue-700 shadow-sm">
+              {item.name.length > 0 ? (
+                <span className="font-black text-lg">{item.name.charAt(0)}</span>
+              ) : (
+                <User className="h-5 w-5" />
+              )}
+            </div>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-lg font-black text-gray-900 tracking-tight">{item.name}</span>
+                {badge}
               {item.original_name && (
                 <span className="text-xs font-bold text-gray-500">{item.original_name}</span>
               )}
@@ -67,8 +78,9 @@ export function PeopleItemCard({
                 )}
               </div>
             )}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col items-end gap-2 shrink-0">
             <span className={`shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold ${item.importance === 'major' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600'}`}>
               {item.importance === 'major' ? '主要' : '補助'}
             </span>
@@ -110,17 +122,29 @@ export function PeopleItemCard({
           )}
         </div>
         
-        <div className="flex justify-end mt-1">
-            <button 
-              onClick={handleToggle}
-              className="text-xs font-bold text-gray-500 hover:text-gray-700 flex items-center gap-1"
-            >
-              {expanded ? (
-                <>閉じる <ChevronUp className="h-4 w-4" /></>
-              ) : (
-                <>詳しく見る <ChevronDown className="h-4 w-4" /></>
-              )}
-            </button>
+        <div className="flex justify-between items-center mt-1">
+          <div>
+            {onToggleHide && (
+              <button
+                onClick={onToggleHide}
+                className="text-xs font-bold text-gray-400 hover:text-gray-600 flex items-center gap-1 bg-gray-50 hover:bg-gray-100 px-2 py-1 rounded transition-colors"
+                title="一覧から非表示にする"
+              >
+                <EyeOff className="h-3 w-3" />
+                非表示
+              </button>
+            )}
+          </div>
+          <button 
+            onClick={handleToggle}
+            className="text-xs font-bold text-gray-500 hover:text-gray-700 flex items-center gap-1"
+          >
+            {expanded ? (
+              <>閉じる <ChevronUp className="h-4 w-4" /></>
+            ) : (
+              <>詳しく見る <ChevronDown className="h-4 w-4" /></>
+            )}
+          </button>
         </div>
       </div>
 

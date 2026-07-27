@@ -8,6 +8,7 @@ import { TIMELINE_EVENT_TYPE_LABELS, REGIONS, FIELDS } from '@/lib/constants';
 type GlobalTimelineEntry = TimelineEntry & {
   documentId?: string;
   documentTitle?: string;
+  isHiddenInGlobal?: boolean;
 };
 
 export default function GlobalTimeline() {
@@ -43,6 +44,7 @@ export default function GlobalTimeline() {
       const mappedData: GlobalTimelineEntry[] = (data || []).map((entry: any) => ({
         id: entry.id,
         dateLabel: entry.date_label,
+        isHiddenInGlobal: entry.is_hidden_in_global || false,
         sourceDateExpressions: entry.source_date_expressions || [],
         startYear: entry.start_year,
         startMonth: entry.start_month,
@@ -84,9 +86,22 @@ export default function GlobalTimeline() {
     }
   };
 
+  const handleToggleHide = async (id: string, current: boolean) => {
+    try {
+      const { error } = await supabase.from('timeline_entries').update({ is_hidden_in_global: !current }).eq('id', id);
+      if (error) throw error;
+      setEntries(prev => prev.map(e => e.id === id ? { ...e, isHiddenInGlobal: !current } : e));
+    } catch (err: any) {
+      console.error(err);
+      alert('非表示状態の更新に失敗しました');
+    }
+  };
+
   // フィルタリング処理
   const filteredEntries = useMemo(() => {
     return entries.filter(entry => {
+      if (entry.isHiddenInGlobal) return false;
+
       // 検索
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
@@ -295,22 +310,37 @@ export default function GlobalTimeline() {
                       item={item} 
                       documentTitle={item.documentTitle}
                       documentId={item.documentId}
+                      onToggleHide={() => handleToggleHide(item.id!, item.isHiddenInGlobal || false)}
                     />
                   ))}
                 </div>
               )}
 
               {viewMode === 'century' && (
-                <div className="space-y-12">
-                  {groupedEntries?.length === 0 && (
-                    <div className="text-center py-10 text-gray-500 text-sm">
-                      条件に一致する出来事が見つかりませんでした。
-                    </div>
-                  )}
-                  {groupedEntries?.map(group => (
-                    <div key={group.century} className="relative">
-                      {/* 世紀見出しとタイムラインの線 */}
-                      <div className="sticky top-0 z-10 bg-gray-50/95 backdrop-blur-sm py-2 mb-4 border-b border-gray-200">
+                <div className="flex items-start gap-4">
+                  {/* クイックジャンプインデックス */}
+                  <div className="hidden md:flex flex-col gap-1 sticky top-24 shrink-0 w-24 pr-4 border-r border-gray-200 overflow-y-auto max-h-[80vh]">
+                    {groupedEntries?.map(group => (
+                      <button
+                        key={`idx-${group.century}`}
+                        onClick={() => document.getElementById(`century-${group.century}`)?.scrollIntoView({ behavior: 'smooth' })}
+                        className="text-left text-xs font-bold text-gray-500 hover:text-gray-900 hover:bg-gray-100 px-2 py-1.5 rounded transition-colors"
+                      >
+                        {group.century}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="space-y-12 flex-1">
+                    {groupedEntries?.length === 0 && (
+                      <div className="text-center py-10 text-gray-500 text-sm">
+                        条件に一致する出来事が見つかりませんでした。
+                      </div>
+                    )}
+                    {groupedEntries?.map(group => (
+                      <div key={group.century} id={`century-${group.century}`} className="relative">
+                        {/* 世紀見出しとタイムラインの線 */}
+                        <div className="sticky top-0 z-10 bg-gray-50/95 backdrop-blur-sm py-2 mb-4 border-b border-gray-200">
                         <div className="flex items-baseline gap-3">
                           <h2 className="text-xl font-black text-gray-900 tracking-tight">{group.century}</h2>
                           <span className="text-xs font-bold text-gray-400">{group.items.length}件</span>
@@ -326,12 +356,14 @@ export default function GlobalTimeline() {
                               item={item} 
                               documentTitle={item.documentTitle}
                               documentId={item.documentId}
+                              onToggleHide={() => handleToggleHide(item.id!, item.isHiddenInGlobal || false)}
                             />
                           </div>
                         ))}
                       </div>
                     </div>
                   ))}
+                  </div>
                 </div>
               )}
             </>

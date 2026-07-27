@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, ChevronUp, ExternalLink, MapPin, Tag, BookOpen } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink, MapPin, Tag, BookOpen, EyeOff } from 'lucide-react';
 import type { TimelineEntry } from '@/types/timeline';
 import { TIMELINE_EVENT_TYPE_LABELS, getLabel } from '@/lib/constants';
 
@@ -10,9 +10,10 @@ interface TimelineItemCardProps {
   documentId?: string;
   onVerifySource?: (id: string, current: string) => void;
   onVerifyExternal?: (id: string, current: string) => void;
+  onToggleHide?: () => void;
 }
 
-export function TimelineItemCard({ item, documentTitle, documentId, onVerifySource, onVerifyExternal }: TimelineItemCardProps) {
+export function TimelineItemCard({ item, documentTitle, documentId, onVerifySource, onVerifyExternal, onToggleHide }: TimelineItemCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -45,9 +46,6 @@ export function TimelineItemCard({ item, documentTitle, documentId, onVerifySour
             </Link>
           )}
           <h4 className="text-base font-bold text-gray-900 mb-1">{item.title}</h4>
-          {item.displaySummary && !expanded && (
-            <p className="text-sm text-gray-600 line-clamp-2">{item.displaySummary}</p>
-          )}
           {item.displaySummary && expanded && (
             <p className="text-sm text-gray-800 mb-2">{item.displaySummary}</p>
           )}
@@ -71,7 +69,19 @@ export function TimelineItemCard({ item, documentTitle, documentId, onVerifySour
           )}
         </div>
         
-        <div className="flex justify-end mt-1">
+        <div className="flex justify-between items-center mt-1">
+          <div>
+            {onToggleHide && (
+              <button
+                onClick={onToggleHide}
+                className="text-xs font-bold text-gray-400 hover:text-gray-600 flex items-center gap-1 bg-gray-50 hover:bg-gray-100 px-2 py-1 rounded transition-colors"
+                title="一覧から非表示にする"
+              >
+                <EyeOff className="h-3 w-3" />
+                非表示
+              </button>
+            )}
+          </div>
           <button 
             onClick={() => setExpanded(!expanded)}
             className="text-xs font-bold text-gray-500 hover:text-gray-700 flex items-center gap-1"

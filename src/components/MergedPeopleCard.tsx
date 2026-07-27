@@ -7,6 +7,7 @@ export type GlobalPersonEntry = PersonEntry & {
   documentId?: string;
   documentTitle?: string;
   createdAt?: string;
+  isHiddenInGlobal?: boolean;
 };
 
 export type MergedPersonEntry = {
@@ -24,6 +25,7 @@ interface MergedPeopleCardProps {
   onUnmerge?: (id: string) => void;
   onVerifySource?: (id: string, current: string) => Promise<void>;
   onVerifyExternal?: (id: string, current: string) => Promise<void>;
+  onToggleHide?: () => void;
 }
 
 export function MergedPeopleCard({ 
@@ -33,7 +35,8 @@ export function MergedPeopleCard({
   onToggleSelect,
   onUnmerge,
   onVerifySource, 
-  onVerifyExternal 
+  onVerifyExternal,
+  onToggleHide
 }: MergedPeopleCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [activeTabId, setActiveTabId] = useState<string>(mergedItem.primary.id!);
@@ -89,6 +92,7 @@ export function MergedPeopleCard({
         documentId={mergedItem.primary.documentId}
         onVerifySource={onVerifySource}
         onVerifyExternal={onVerifyExternal}
+        onToggleHide={onToggleHide}
       />
     );
   }
@@ -106,6 +110,7 @@ export function MergedPeopleCard({
           documentId={mergedItem.primary.documentId}
           onVerifySource={onVerifySource}
           onVerifyExternal={onVerifyExternal}
+          onToggleHide={onToggleHide}
           hideDetails={!expanded}
           forceExpanded={expanded}
           onToggleExpand={() => setExpanded(!expanded)}

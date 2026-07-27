@@ -21,6 +21,7 @@ export default function GlobalPeople() {
   
   // 表示モード
   const [viewMode, setViewMode] = useState<'continuous' | 'century' | 'region' | 'type' | 'field'>('continuous');
+  const [sortType, setSortType] = useState<'name' | 'birth' | 'count'>('name');
 
   // マージ（統合）操作用ステート
   const [isMergeMode, setIsMergeMode] = useState(false);
@@ -71,6 +72,7 @@ export default function GlobalPeople() {
         external_verification_status: entry.external_verification_status || "unverified",
         merge_group_id: entry.merge_group_id || null,
         createdAt: entry.created_at,
+        isHiddenInGlobal: entry.is_hidden_in_global || false,
         // Joinされたdocuments情報
         documentId: entry.documents?.id,
         documentTitle: entry.documents?.title
@@ -164,9 +166,23 @@ export default function GlobalPeople() {
     }
   };
 
+  const handleToggleHide = async (items: GlobalPersonEntry[], current: boolean) => {
+    try {
+      const ids = items.map(i => i.id!);
+      const { error } = await supabase.from('person_entries').update({ is_hidden_in_global: !current }).in('id', ids);
+      if (error) throw error;
+      setEntries(prev => prev.map(e => ids.includes(e.id!) ? { ...e, isHiddenInGlobal: !current } : e));
+    } catch (err: any) {
+      console.error(err);
+      alert('非表示状態の更新に失敗しました');
+    }
+  };
+
   // フィルタリング処理
   const filteredEntries = useMemo(() => {
     return entries.filter(entry => {
+      if (entry.isHiddenInGlobal) return false;
+
       // 検索
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
@@ -227,12 +243,22 @@ export default function GlobalPeople() {
       }
     });
 
-    // singles と groupsを合わせて、元の sorted 順（ここでは名前順）に並べ直す
+    // singles と groupsを合わせて並べ直す
     const combined = [...singles, ...Array.from(groups.values())];
-    const collator = new Intl.Collator('ja');
-    combined.sort((a, b) => collator.compare(a.primary.name, b.primary.name));
+    combined.sort((a, b) => {
+      if (sortType === 'count') {
+        const diff = b.items.length - a.items.length;
+        if (diff !== 0) return diff;
+      } else if (sortType === 'birth') {
+        const getYear = (e: MergedPersonEntry) => e.primary.birth_year ?? e.primary.death_year ?? 9999;
+        const diff = getYear(a) - getYear(b);
+        if (diff !== 0) return diff;
+      }
+      const collator = new Intl.Collator('ja');
+      return collator.compare(a.primary.name, b.primary.name);
+    });
     return combined;
-  }, [filteredEntries]);
+  }, [filteredEntries, sortType]);
 
   // グループ化処理
   const groupedEntries = useMemo(() => {
@@ -366,6 +392,18 @@ export default function GlobalPeople() {
           <Filter className="h-4 w-4 text-gray-400 mr-1" />
           
           <select 
+            value={sortType} 
+            onChange={e => setSortType(e.target.value as any)}
+            className="text-xs bg-white border border-gray-300 rounded-md px-2 py-1.5 font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900"
+          >
+            <option value="name">名前順</option>
+            <option value="birth">生年が古い順</option>
+            <option value="count">言及数順</option>
+          </select>
+
+          <div className="w-px h-4 bg-gray-200 mx-1"></div>
+
+          <select 
             value={importanceFilter} 
             onChange={e => setImportanceFilter(e.target.value as any)}
             className="text-xs bg-gray-50 border border-gray-200 rounded-md px-2 py-1.5 font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900"
@@ -476,6 +514,7 @@ export default function GlobalPeople() {
                       onUnmerge={handleExecuteUnmerge}
                       onVerifySource={handleVerifySource}
                       onVerifyExternal={handleVerifyExternal}
+                      onToggleHide={() => handleToggleHide(mergedItem.items, mergedItem.primary.isHiddenInGlobal || false)}
                     />
                   ))}
                 </div>
@@ -509,6 +548,7 @@ export default function GlobalPeople() {
                             onUnmerge={handleExecuteUnmerge}
                             onVerifySource={handleVerifySource}
                             onVerifyExternal={handleVerifyExternal}
+                            onToggleHide={() => handleToggleHide(mergedItem.items, mergedItem.primary.isHiddenInGlobal || false)}
                           />
                         ))}
                       </div>

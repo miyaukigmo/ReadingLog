@@ -63,5 +63,6 @@ export type TimelineEntry = z.infer<typeof timelineEntrySchema> & {
   document_id?: string;
   created_at?: string;
   updated_at?: string;
+  is_hidden_in_global?: boolean;
 };
 export type TimelineImportData = z.infer<typeof timelineImportSchema>;
