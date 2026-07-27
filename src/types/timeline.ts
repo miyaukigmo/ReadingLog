@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { REGIONS, FIELDS, TIMELINE_EVENT_TYPE_LABELS } from '@/lib/constants';
+import { REGIONS, FIELDS } from '@/lib/constants';
 
 // Zodスキーマ定義
 
@@ -24,7 +24,7 @@ export const timelineEntrySchema = z.object({
   dateCertainty: z.enum(['established', 'approximate', 'disputed', 'context_dependent']),
   periodLabels: z.array(z.string()).optional().default([]),
   title: z.string().min(1, 'titleは必須です'),
-  eventType: z.enum(Object.keys(TIMELINE_EVENT_TYPE_LABELS) as [string, ...string[]]),
+  eventType: z.enum(['historical_event', 'war_diplomacy', 'institution', 'social_economic', 'intellectual_cultural_movement', 'publication', 'discovery_invention', 'other']),
   importance: z.enum(['major', 'supporting']),
   displaySummary: z.string().optional().default(''),
   sourceSummary: z.string().optional().default(''),
