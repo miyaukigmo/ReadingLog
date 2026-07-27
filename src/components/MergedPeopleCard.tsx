@@ -26,6 +26,7 @@ interface MergedPeopleCardProps {
   onVerifySource?: (id: string, current: string) => Promise<void>;
   onVerifyExternal?: (id: string, current: string) => Promise<void>;
   onToggleHide?: () => void;
+  isHidden?: boolean;
 }
 
 export function MergedPeopleCard({ 
@@ -36,7 +37,8 @@ export function MergedPeopleCard({
   onUnmerge,
   onVerifySource, 
   onVerifyExternal,
-  onToggleHide
+  onToggleHide,
+  isHidden
 }: MergedPeopleCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [activeTabId, setActiveTabId] = useState<string>(mergedItem.primary.id!);
@@ -93,6 +95,7 @@ export function MergedPeopleCard({
         onVerifySource={onVerifySource}
         onVerifyExternal={onVerifyExternal}
         onToggleHide={onToggleHide}
+        isHidden={isHidden}
       />
     );
   }
@@ -111,6 +114,7 @@ export function MergedPeopleCard({
           onVerifySource={onVerifySource}
           onVerifyExternal={onVerifyExternal}
           onToggleHide={onToggleHide}
+          isHidden={isHidden}
           hideDetails={!expanded}
           forceExpanded={expanded}
           onToggleExpand={() => setExpanded(!expanded)}
