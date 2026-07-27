@@ -1,11 +1,12 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { BookOpen, Brain, Settings, Wrench, Hash, Clock, Users } from 'lucide-react';
+import { BookOpen, Brain, Settings, Wrench, Hash, Clock, Users, Network } from 'lucide-react';
 
 export default function Layout() {
   const location = useLocation();
 
   const navItems = [
     { name: 'Library', path: '/', icon: BookOpen },
+    { name: 'Graph', path: '/graph', icon: Network },
     { name: 'Timeline', path: '/timeline', icon: Clock },
     { name: 'People', path: '/people', icon: Users },
     { name: 'Review', path: '/review', icon: Brain },

@@ -12,6 +12,7 @@ import Tags from './pages/Tags';
 import TagDetail from './pages/TagDetail';
 import GlobalTimeline from './pages/GlobalTimeline';
 import GlobalPeople from './pages/GlobalPeople';
+import Graph from './pages/Graph';
 
 const router = createBrowserRouter([
   {
@@ -21,6 +22,10 @@ const router = createBrowserRouter([
       {
         path: '/',
         element: <Dashboard />,
+      },
+      {
+        path: '/graph',
+        element: <Graph />,
       },
       {
         path: '/timeline',
