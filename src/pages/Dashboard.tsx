@@ -326,11 +326,15 @@ export default function Dashboard() {
               <div className="text-[10px] text-gray-500 uppercase">項目</div>
             </div>
             <div className="text-center">
-              <div className="text-sm font-semibold text-gray-900">{reviewItems}</div>
+              <div className="text-sm font-semibold text-gray-900">
+                {totalItems > 0 ? `${reviewItems}/${totalItems}` : '0'}
+              </div>
               <div className="text-[10px] text-gray-500 uppercase">復習対象</div>
             </div>
             <div className="text-center">
-              <div className="text-sm font-semibold text-gray-900">{verifiedItems}</div>
+              <div className="text-sm font-semibold text-gray-900">
+                {totalItems > 0 ? `${verifiedItems}/${totalItems}` : '0'}
+              </div>
               <div className="text-[10px] text-gray-500 uppercase">確認済み</div>
             </div>
           </div>
