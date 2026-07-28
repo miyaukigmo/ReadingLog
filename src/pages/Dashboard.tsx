@@ -190,7 +190,27 @@ export default function Dashboard() {
 
     filteredDocuments.forEach(doc => {
       let keys: string[] = [];
-      if (groupBy === 'type') {
+      if (groupBy === 'unread') {
+        const isArchive = doc.purpose === 'archive';
+        let totalItems = 0;
+        let verifiedItems = 0;
+        doc.sections?.forEach((sec: any) => {
+          totalItems += (sec.items || []).length;
+          sec.items?.forEach((item: any) => {
+            if (item.verification_status === 'verified') verifiedItems++;
+          });
+        });
+
+        if (isArchive) {
+          if (!doc.is_read) {
+            keys = ['未読 (Archive)'];
+          }
+        } else {
+          if (totalItems > 0 && verifiedItems < totalItems) {
+            keys = ['未完了 (Study)'];
+          }
+        }
+      } else if (groupBy === 'type') {
         keys = [getLabel(DOCUMENT_TYPE_LABELS, doc.type, doc.type)];
       } else if (groupBy === 'author') {
         keys = doc.authors && doc.authors.length > 0 ? doc.authors : ['著者不明'];
@@ -261,6 +281,16 @@ export default function Dashboard() {
           <div className="flex items-start justify-between gap-4">
             <h2 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-gray-600 transition-colors">
               <HighlightText text={doc.title} query={searchQuery} />
+              {!isArchive && totalItems > 0 && verifiedItems === totalItems && (
+                <span className="ml-2 inline-flex items-center rounded-md bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20 align-middle">
+                  ✓ 完了
+                </span>
+              )}
+              {isArchive && doc.is_read && (
+                <span className="ml-2 inline-flex items-center rounded-md bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20 align-middle">
+                  ✓ 既読
+                </span>
+              )}
             </h2>
             <div className="flex flex-col items-end gap-1 shrink-0">
               <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset capitalize ${getTypeBadgeClass(doc.type)}`}>
@@ -477,6 +507,12 @@ export default function Dashboard() {
                   className={`flex-1 sm:flex-none px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${groupBy === 'author' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
                 >
                   作者
+                </button>
+                <button
+                  onClick={() => updateSearchParam('groupBy', 'unread')}
+                  className={`flex-1 sm:flex-none px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${groupBy === 'unread' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  未読/未完了
                 </button>
               </div>
             </div>

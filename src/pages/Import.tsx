@@ -69,6 +69,7 @@ export default function Import() {
             summary: doc.summary || '',
             notebookLmReport: doc.notebookLmReport || '',
             keyPoints: doc.keyPoints || [],
+            is_read: doc.is_read || false,
             sections: (doc.sections || []).map((sec: any) => ({
               title: sec.title,
               summary: sec.summary || '',
@@ -123,6 +124,7 @@ export default function Import() {
         summary: previewData.document.summary,
         notebook_lm_report: previewData.document.notebookLmReport,
         key_points: previewData.document.keyPoints,
+        is_read: previewData.document.is_read ?? false,
       }).select('id').single();
 
       if (docError) throw docError;

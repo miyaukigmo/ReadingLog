@@ -69,6 +69,7 @@ export const documentSchemaV11 = z.object({
   keyPoints: z.array(z.string()).optional().default([]),
   sections: z.array(sectionSchemaV11).optional().default([]),
   connections: z.array(connectionSchema).optional().default([]),
+  is_read: z.boolean().optional().default(false),
 }).strict();
 
 export const importSchemaV11 = z.object({
@@ -221,6 +222,7 @@ export const backupSchemaV11 = z.object({
       summary: z.string().nullable().optional(),
       notebook_lm_report: z.string().nullable().optional(),
       key_points: z.array(z.string()).nullable().optional(),
+      is_read: z.boolean().nullable().optional(),
       created_at: z.string(),
       updated_at: z.string()
     })),

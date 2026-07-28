@@ -243,6 +243,13 @@ export default function DocumentDetail() {
     await supabase.from('items').update({ verification_status: newStatus }).eq('id', itemId);
   };
 
+  const toggleReadStatus = async () => {
+    if (!doc) return;
+    const newStatus = !doc.is_read;
+    setDoc((prev: any) => ({ ...prev, is_read: newStatus }));
+    await supabase.from('documents').update({ is_read: newStatus }).eq('id', doc.id);
+  };
+
   const handleExport = () => {
     if (!doc) return;
     
@@ -257,6 +264,7 @@ export default function DocumentDetail() {
         summary: doc.summary || "",
         notebookLmReport: doc.notebook_lm_report || "",
         keyPoints: doc.key_points || [],
+        is_read: doc.is_read || false,
         sections: (doc.sections || []).map((sec: any) => ({
           title: sec.title,
           summary: sec.summary || "",
@@ -383,6 +391,19 @@ export default function DocumentDetail() {
             </h1>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            {isArchive && (
+              <button 
+                onClick={toggleReadStatus} 
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-bold transition-colors shadow-sm ${doc.is_read ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'}`}
+                title={doc.is_read ? "未読に戻す" : "既読にする"}
+              >
+                {doc.is_read ? (
+                  <><CheckCircle2 className="h-4 w-4" /> 既読</>
+                ) : (
+                  "既読にする"
+                )}
+              </button>
+            )}
             <Link to={`/document/${doc.id}/edit`} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="編集">
               <Edit className="h-4 w-4" />
             </Link>
