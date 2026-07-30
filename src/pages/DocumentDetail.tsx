@@ -22,10 +22,15 @@ export default function DocumentDetail() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
   
-  // インライン編集用の状態
+  // インライン編集用の状態 (セクション)
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [editSummaryText, setEditSummaryText] = useState('');
   const [isSavingSummary, setIsSavingSummary] = useState(false);
+
+  // インライン編集用の状態 (項目)
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editItemData, setEditItemData] = useState({ summary: '', detail: '', review_prompt: '' });
+  const [isSavingItem, setIsSavingItem] = useState(false);
 
   const currentTab = searchParams.get('tab') || 'overview';
   const setCurrentTab = (tab: string) => {
@@ -252,6 +257,54 @@ export default function DocumentDetail() {
       alert('まとめの更新に失敗しました');
     } finally {
       setIsSavingSummary(false);
+    }
+  };
+
+  const startEditingItem = (item: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingItemId(item.id);
+    setEditItemData({
+      summary: item.summary || '',
+      detail: item.detail || '',
+      review_prompt: item.review_prompt || ''
+    });
+  };
+
+  const handleSaveItem = async (itemId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!itemId) return;
+    
+    setIsSavingItem(true);
+    try {
+      const { error } = await supabase
+        .from('items')
+        .update({
+          summary: editItemData.summary,
+          detail: editItemData.detail,
+          review_prompt: editItemData.review_prompt
+        })
+        .eq('id', itemId);
+
+      if (error) throw error;
+
+      setDoc((prev: any) => {
+        const newDoc = { ...prev };
+        newDoc.sections = newDoc.sections?.map((sec: any) => ({
+          ...sec,
+          items: sec.items?.map((item: any) =>
+            item.id === itemId
+              ? { ...item, summary: editItemData.summary, detail: editItemData.detail, review_prompt: editItemData.review_prompt }
+              : item
+          )
+        }));
+        return newDoc;
+      });
+      setEditingItemId(null);
+    } catch (err) {
+      console.error('Error updating item:', err);
+      alert('項目の更新に失敗しました');
+    } finally {
+      setIsSavingItem(false);
     }
   };
 
@@ -868,39 +921,104 @@ export default function DocumentDetail() {
                               </div>
 
                               {isItemOpen && (
-                                <div className="px-4 sm:px-5 pb-5 pt-2 border-t border-gray-100 bg-gray-50/50 rounded-b-xl space-y-4">
-                                  {item.summary && (
-                                    <div>
-                                      <h5 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">概要</h5>
-                                      <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">
-                                        <HighlightText text={item.summary} query={searchQuery} />
-                                      </p>
+                                <div className="px-4 sm:px-5 pb-5 pt-2 border-t border-gray-100 bg-gray-50/50 rounded-b-xl relative group/item">
+                                  {editingItemId === item.id ? (
+                                    <div className="space-y-4 pt-2">
+                                      <div>
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">概要</label>
+                                        <textarea
+                                          className="w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-2"
+                                          value={editItemData.summary}
+                                          onChange={(e) => setEditItemData(prev => ({ ...prev, summary: e.target.value }))}
+                                          disabled={isSavingItem}
+                                          rows={3}
+                                          onClick={(e) => e.stopPropagation()}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">詳細</label>
+                                        <textarea
+                                          className="w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-2"
+                                          value={editItemData.detail}
+                                          onChange={(e) => setEditItemData(prev => ({ ...prev, detail: e.target.value }))}
+                                          disabled={isSavingItem}
+                                          rows={5}
+                                          onClick={(e) => e.stopPropagation()}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-1 block">復習用の問い</label>
+                                        <textarea
+                                          className="w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-2"
+                                          value={editItemData.review_prompt}
+                                          onChange={(e) => setEditItemData(prev => ({ ...prev, review_prompt: e.target.value }))}
+                                          disabled={isSavingItem}
+                                          rows={2}
+                                          onClick={(e) => e.stopPropagation()}
+                                        />
+                                      </div>
+                                      <div className="flex justify-end gap-2 pt-2">
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); setEditingItemId(null); }}
+                                          className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                                          disabled={isSavingItem}
+                                        >
+                                          キャンセル
+                                        </button>
+                                        <button
+                                          onClick={(e) => handleSaveItem(item.id, e)}
+                                          className="px-3 py-1.5 text-xs font-medium text-white bg-gray-800 border border-transparent rounded-md hover:bg-gray-900 disabled:bg-gray-400"
+                                          disabled={isSavingItem}
+                                        >
+                                          {isSavingItem ? '保存中...' : '保存'}
+                                        </button>
+                                      </div>
                                     </div>
-                                  )}
-                                  {item.detail && (
-                                    <div>
-                                      <h5 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">詳細</h5>
-                                      <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">
-                                        <HighlightText text={item.detail} query={searchQuery} />
-                                      </p>
-                                    </div>
-                                  )}
-                                  {item.review_prompt && (
-                                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                                      <h5 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-1">復習用の問い</h5>
-                                      <p className="text-sm text-gray-800">
-                                        <HighlightText text={item.review_prompt} query={searchQuery} />
-                                      </p>
-                                    </div>
-                                  )}
-                                  {item.keywords?.length > 0 && (
-                                    <div className="flex flex-wrap gap-2 pt-2">
-                                      {item.keywords.map((k: string, i: number) => (
-                                        <span key={i} className="inline-flex items-center rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600">
-                                          #<HighlightText text={k} query={searchQuery} />
-                                        </span>
-                                      ))}
-                                    </div>
+                                  ) : (
+                                    <>
+                                      <button
+                                        onClick={(e) => startEditingItem(item, e)}
+                                        className="absolute right-4 top-2 p-1.5 text-gray-400 hover:text-gray-700 bg-gray-50/80 rounded-md opacity-0 group-hover/item:opacity-100 transition-opacity flex items-center gap-1 text-xs font-bold"
+                                        title="項目を編集"
+                                      >
+                                        <Edit className="h-4 w-4" /> 編集
+                                      </button>
+                                      <div className="space-y-4 pt-2">
+                                        {item.summary && (
+                                          <div>
+                                            <h5 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">概要</h5>
+                                            <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">
+                                              <HighlightText text={item.summary} query={searchQuery} />
+                                            </p>
+                                          </div>
+                                        )}
+                                        {item.detail && (
+                                          <div>
+                                            <h5 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">詳細</h5>
+                                            <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">
+                                              <HighlightText text={item.detail} query={searchQuery} />
+                                            </p>
+                                          </div>
+                                        )}
+                                        {item.review_prompt && (
+                                          <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 mt-2">
+                                            <h5 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-1">復習用の問い</h5>
+                                            <p className="text-sm text-gray-800">
+                                              <HighlightText text={item.review_prompt} query={searchQuery} />
+                                            </p>
+                                          </div>
+                                        )}
+                                        {item.keywords?.length > 0 && (
+                                          <div className="flex flex-wrap gap-2 pt-2">
+                                            {item.keywords.map((k: string, i: number) => (
+                                              <span key={i} className="inline-flex items-center rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600">
+                                                #<HighlightText text={k} query={searchQuery} />
+                                              </span>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </>
                                   )}
                                 </div>
                               )}
