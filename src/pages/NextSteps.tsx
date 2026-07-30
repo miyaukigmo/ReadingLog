@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Compass, Search, Star, Link as LinkIcon } from 'lucide-react';
 import { HighlightText } from '@/components/HighlightText';
 import { CONNECTION_TYPE_LABELS, CONNECTION_BASIS_LABELS, getLabel, getTypeBadgeClass, DOCUMENT_TYPE_LABELS } from '@/lib/constants';
