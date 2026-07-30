@@ -21,6 +21,11 @@ export default function DocumentDetail() {
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
+  
+  // インライン編集用の状態
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  const [editSummaryText, setEditSummaryText] = useState('');
+  const [isSavingSummary, setIsSavingSummary] = useState(false);
 
   const currentTab = searchParams.get('tab') || 'overview';
   const setCurrentTab = (tab: string) => {
@@ -213,6 +218,41 @@ export default function DocumentDetail() {
   const toggleItem = (itemId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setExpandedItems(prev => ({ ...prev, [itemId]: !prev[itemId] }));
+  };
+
+  const startEditingSummary = (secId: string, currentText: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingSectionId(secId);
+    setEditSummaryText(currentText || '');
+  };
+
+  const handleSaveSectionSummary = async (secId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!secId) return;
+    
+    setIsSavingSummary(true);
+    try {
+      const { error } = await supabase
+        .from('sections')
+        .update({ summary: editSummaryText })
+        .eq('id', secId);
+
+      if (error) throw error;
+
+      setDoc((prev: any) => {
+        const newDoc = { ...prev };
+        newDoc.sections = newDoc.sections?.map((sec: any) =>
+          sec.id === secId ? { ...sec, summary: editSummaryText } : sec
+        );
+        return newDoc;
+      });
+      setEditingSectionId(null);
+    } catch (err) {
+      console.error('Error updating section summary:', err);
+      alert('まとめの更新に失敗しました');
+    } finally {
+      setIsSavingSummary(false);
+    }
   };
 
   const toggleReviewEnabled = async (itemId: string, currentVal: boolean, e: React.MouseEvent) => {
@@ -639,9 +679,47 @@ export default function DocumentDetail() {
                       )}
                       <div className="p-6">
                         {currentTab === 'summary' && (
-                          <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
-                            <HighlightText text={sec.summary} query={searchQuery} />
-                          </p>
+                          <div className="relative group/summary">
+                            {editingSectionId === sec.id ? (
+                              <div className="flex flex-col gap-2">
+                                <textarea
+                                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 min-h-[120px]"
+                                  value={editSummaryText}
+                                  onChange={(e) => setEditSummaryText(e.target.value)}
+                                  disabled={isSavingSummary}
+                                />
+                                <div className="flex justify-end gap-2">
+                                  <button
+                                    onClick={() => setEditingSectionId(null)}
+                                    className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                                    disabled={isSavingSummary}
+                                  >
+                                    キャンセル
+                                  </button>
+                                  <button
+                                    onClick={(e) => handleSaveSectionSummary(sec.id, e)}
+                                    className="px-3 py-1.5 text-xs font-medium text-white bg-purple-600 border border-transparent rounded-md hover:bg-purple-700 disabled:bg-purple-400"
+                                    disabled={isSavingSummary}
+                                  >
+                                    {isSavingSummary ? '保存中...' : '保存'}
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={(e) => startEditingSummary(sec.id, sec.summary, e)}
+                                  className="absolute right-0 top-0 -mt-2 p-1.5 text-gray-400 hover:text-gray-700 bg-white/80 rounded-md opacity-0 group-hover/summary:opacity-100 transition-opacity flex items-center gap-1 text-xs font-bold"
+                                  title="まとめを編集"
+                                >
+                                  <Edit className="h-4 w-4" /> 編集
+                                </button>
+                                <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
+                                  <HighlightText text={sec.summary} query={searchQuery} />
+                                </p>
+                              </>
+                            )}
+                          </div>
                         )}
                         {currentTab === 'archive_report' && (
                           <article className="prose prose-sm sm:prose-base prose-gray max-w-none">
@@ -697,9 +775,47 @@ export default function DocumentDetail() {
                   {isSecOpen && (
                     <div className="p-6 border-t border-gray-200 space-y-6">
                       {sec.summary && (
-                        <p className="text-sm text-gray-600 leading-relaxed bg-gray-50 p-4 rounded-lg">
-                          <HighlightText text={sec.summary} query={searchQuery} />
-                        </p>
+                        <div className="relative group/summary">
+                          {editingSectionId === sec.id ? (
+                            <div className="flex flex-col gap-2 bg-gray-50 p-4 rounded-lg">
+                              <textarea
+                                className="w-full rounded-md border-gray-300 shadow-sm focus:border-gray-500 focus:ring-gray-500 sm:text-sm p-3 min-h-[100px]"
+                                value={editSummaryText}
+                                onChange={(e) => setEditSummaryText(e.target.value)}
+                                disabled={isSavingSummary}
+                              />
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  onClick={() => setEditingSectionId(null)}
+                                  className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                                  disabled={isSavingSummary}
+                                >
+                                  キャンセル
+                                </button>
+                                <button
+                                  onClick={(e) => handleSaveSectionSummary(sec.id, e)}
+                                  className="px-3 py-1.5 text-xs font-medium text-white bg-gray-800 border border-transparent rounded-md hover:bg-gray-900 disabled:bg-gray-400"
+                                  disabled={isSavingSummary}
+                                >
+                                  {isSavingSummary ? '保存中...' : '保存'}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                              <button
+                                onClick={(e) => startEditingSummary(sec.id, sec.summary, e)}
+                                className="absolute right-2 top-2 p-1.5 text-gray-400 hover:text-gray-700 bg-gray-50/80 rounded-md opacity-0 group-hover/summary:opacity-100 transition-opacity flex items-center gap-1 text-xs font-bold"
+                                title="まとめを編集"
+                              >
+                                <Edit className="h-4 w-4" /> 編集
+                              </button>
+                              <p className="text-sm text-gray-600 leading-relaxed">
+                                <HighlightText text={sec.summary} query={searchQuery} />
+                              </p>
+                            </div>
+                          )}
+                        </div>
                       )}
 
                       <div className="space-y-3">

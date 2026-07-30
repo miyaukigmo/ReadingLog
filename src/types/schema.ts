@@ -10,7 +10,7 @@ export const itemSchema = z.object({
   summary: z.string().optional().default(''),
   detail: z.string().optional().default(''),
   reviewPrompt: z.string().optional().default(''),
-  reviewEnabled: z.boolean().optional().default(true),
+  reviewEnabled: z.boolean().optional().default(false),
   keywords: z.array(z.string()).optional().default([]),
 });
 

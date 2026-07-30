@@ -280,17 +280,17 @@ export default function Dashboard() {
         <div>
           <div className="flex items-start justify-between gap-4">
             <h2 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-gray-600 transition-colors">
-              <HighlightText text={doc.title} query={searchQuery} />
               {!isArchive && totalItems > 0 && verifiedItems === totalItems && (
-                <span className="ml-2 inline-flex items-center rounded-md bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20 align-middle">
+                <span className="mr-2 inline-flex items-center rounded-md bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20 align-middle">
                   ✓ 完了
                 </span>
               )}
               {isArchive && doc.is_read && (
-                <span className="ml-2 inline-flex items-center rounded-md bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20 align-middle">
+                <span className="mr-2 inline-flex items-center rounded-md bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20 align-middle">
                   ✓ 既読
                 </span>
               )}
+              <HighlightText text={doc.title} query={searchQuery} />
             </h2>
             <div className="flex flex-col items-end gap-1 shrink-0">
               <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset capitalize ${getTypeBadgeClass(doc.type)}`}>
@@ -376,6 +376,16 @@ export default function Dashboard() {
   const renderList = (doc: any) => {
     const isArchive = doc.purpose === 'archive';
     
+    let totalItems = 0;
+    let verifiedItems = 0;
+    
+    doc.sections?.forEach((sec: any) => {
+      totalItems += (sec.items || []).length;
+      sec.items?.forEach((item: any) => {
+        if (item.verification_status === 'verified') verifiedItems++;
+      });
+    });
+
     return (
       <div
         key={doc.id}
@@ -395,6 +405,16 @@ export default function Dashboard() {
               )}
             </div>
             <h2 className="text-sm font-bold text-gray-900 truncate">
+              {!isArchive && totalItems > 0 && verifiedItems === totalItems && (
+                <span className="mr-2 inline-flex items-center rounded-md bg-green-50 px-1.5 py-0.5 text-[10px] font-medium text-green-700 ring-1 ring-inset ring-green-600/20 align-middle">
+                  ✓ 完了
+                </span>
+              )}
+              {isArchive && doc.is_read && (
+                <span className="mr-2 inline-flex items-center rounded-md bg-green-50 px-1.5 py-0.5 text-[10px] font-medium text-green-700 ring-1 ring-inset ring-green-600/20 align-middle">
+                  ✓ 既読
+                </span>
+              )}
               <HighlightText text={doc.title} query={searchQuery} />
             </h2>
           </div>

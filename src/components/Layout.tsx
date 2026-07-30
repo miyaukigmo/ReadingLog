@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { BookOpen, Brain, Settings, Wrench, Hash, Clock, Users } from 'lucide-react';
+import { BookOpen, Brain, Settings, Wrench, Hash, Clock, Users, Compass } from 'lucide-react';
 
 export default function Layout() {
   const location = useLocation();
@@ -8,6 +8,7 @@ export default function Layout() {
     { name: 'Library', path: '/', icon: BookOpen },
     { name: 'Timeline', path: '/timeline', icon: Clock },
     { name: 'People', path: '/people', icon: Users },
+    { name: 'Next Steps', path: '/next-steps', icon: Compass },
     { name: 'Review', path: '/review', icon: Brain },
     { name: 'Tags', path: '/tags', icon: Hash },
     { name: 'Tools', path: '/tools', icon: Wrench },

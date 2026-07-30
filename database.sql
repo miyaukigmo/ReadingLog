@@ -45,7 +45,7 @@ create table public.items (
   summary text,
   detail text,
   review_prompt text,
-  review_enabled boolean default true,
+  review_enabled boolean default false,
   keywords jsonb default '[]'::jsonb,
   sort_order integer not null,
   verification_status text default 'unverified' check (verification_status in ('unverified', 'verified')),
@@ -65,6 +65,7 @@ create table public.connections (
   search_keywords jsonb not null default '[]'::jsonb,
   basis text not null default 'inferred' check (basis in ('direct', 'inferred', 'external')),
   sort_order integer not null default 0,
+  is_favorite boolean not null default false,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
