@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { ChevronLeft, BookOpen, Link as LinkIcon, FileText } from 'lucide-react';
@@ -60,6 +60,38 @@ export default function TagDetail() {
     setLoading(false);
   };
 
+  const relatedTags = useMemo(() => {
+    const counts: Record<string, number> = {};
+    documents.forEach(doc => {
+      doc.categories?.forEach((c: string) => {
+        if (c !== tag) counts[c] = (counts[c] || 0) + 1;
+      });
+      doc.sections?.forEach((sec: any) => {
+        sec.keywords?.forEach((k: string) => {
+          if (k !== tag) counts[k] = (counts[k] || 0) + 1;
+        });
+        sec.items?.forEach((item: any) => {
+          item.keywords?.forEach((k: string) => {
+            if (k !== tag) counts[k] = (counts[k] || 0) + 1;
+          });
+        });
+      });
+      doc.connections?.forEach((conn: any) => {
+        conn.search_keywords?.forEach((k: string) => {
+          if (k !== tag) counts[k] = (counts[k] || 0) + 1;
+        });
+        conn.starting_points?.forEach((k: string) => {
+          if (k !== tag) counts[k] = (counts[k] || 0) + 1;
+        });
+      });
+    });
+
+    return Object.entries(counts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ja'))
+      .slice(0, 15);
+  }, [documents, tag]);
+
   if (loading) return <div className="text-center py-20 text-gray-500">読み込み中...</div>;
 
   return (
@@ -77,6 +109,31 @@ export default function TagDetail() {
       </header>
 
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
+        
+        {relatedTags.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+            <h2 className="text-sm font-bold text-gray-700 flex items-center gap-2 mb-3">
+              <span className="text-xl">✨</span> 一緒に使われているキーワード
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              {relatedTags.map(rtag => (
+                <Link
+                  key={rtag.name}
+                  to={`/tags/${encodeURIComponent(rtag.name)}`}
+                  className="group flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 pl-2 pr-1.5 py-1 hover:border-gray-400 hover:bg-white transition-all hover:shadow-sm"
+                >
+                  <span className="text-xs font-medium text-gray-700 group-hover:text-gray-900">
+                    {rtag.name}
+                  </span>
+                  <span className="inline-flex items-center justify-center rounded-full bg-gray-200 px-1.5 py-0.5 text-[9px] font-bold text-gray-600">
+                    {rtag.count}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         <p className="text-sm font-medium text-gray-600 mb-6">
           <span className="text-gray-900 font-bold">{documents.length}件</span> の資料で見つかりました
         </p>
