@@ -261,6 +261,27 @@ export default function GlobalPeople() {
     return combined;
   }, [filteredEntries, sortType]);
 
+  // 統合（マージ）候補の抽出
+  const mergeCandidates = useMemo(() => {
+    const nameMap = new Map<string, MergedPersonEntry[]>();
+    
+    mergedEntries.forEach(entry => {
+      const name = entry.primary.name;
+      if (!name) return;
+      if (entry.primary.isHiddenInGlobal && !showHidden) return;
+      
+      const normalizedName = name.trim();
+      if (!nameMap.has(normalizedName)) {
+        nameMap.set(normalizedName, []);
+      }
+      nameMap.get(normalizedName)!.push(entry);
+    });
+
+    return Array.from(nameMap.entries())
+      .filter(([_, entries]) => entries.length > 1)
+      .map(([name, entries]) => ({ name, entries }));
+  }, [mergedEntries, showHidden]);
+
   // グループ化処理
   const groupedEntries = useMemo(() => {
     if (viewMode === 'continuous') return null;
@@ -463,7 +484,7 @@ export default function GlobalPeople() {
                 onClick={() => { setIsMergeMode(true); setSelectedMergeIds([]); }}
                 className="text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors"
               >
-                人物をまとめる
+                人物をまとめる {mergeCandidates.length > 0 && <span className="ml-1 bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full">{mergeCandidates.length}</span>}
               </button>
             ) : (
               <div className="flex items-center gap-2">
@@ -508,6 +529,45 @@ export default function GlobalPeople() {
             </div>
           ) : (
             <>
+              {isMergeMode && mergeCandidates.length > 0 && (
+                <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4 animate-in fade-in slide-in-from-top-4">
+                  <h3 className="text-sm font-bold text-orange-800 mb-3 flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    統合できそうな人物の候補 ({mergeCandidates.length}件)
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {mergeCandidates.map(candidate => (
+                      <div key={candidate.name} className="flex items-center justify-between bg-white rounded-lg p-3 shadow-sm border border-orange-100">
+                        <div className="flex-1 min-w-0 mr-3">
+                          <div className="font-bold text-gray-900 truncate">{candidate.name}</div>
+                          <div className="text-xs text-gray-500 mt-1 truncate">
+                            {candidate.entries.map(e => e.primary.documentTitle).join(', ')}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const allSelected = candidate.entries.every(e => selectedMergeIds.includes(e.id));
+                            if (allSelected) {
+                              setSelectedMergeIds(prev => prev.filter(id => !candidate.entries.find(e => e.id === id)));
+                            } else {
+                              const idsToAdd = candidate.entries.map(e => e.id).filter(id => !selectedMergeIds.includes(id));
+                              setSelectedMergeIds(prev => [...prev, ...idsToAdd]);
+                            }
+                          }}
+                          className={`shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors ${
+                            candidate.entries.every(e => selectedMergeIds.includes(e.id))
+                              ? 'bg-orange-100 text-orange-700'
+                              : 'bg-orange-500 text-white hover:bg-orange-600'
+                          }`}
+                        >
+                          {candidate.entries.every(e => selectedMergeIds.includes(e.id)) ? '選択解除' : 'これらを選択'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {viewMode === 'continuous' && (
                 <div className="grid grid-cols-1 gap-4">
                   {mergedEntries.length === 0 && (
