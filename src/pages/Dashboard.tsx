@@ -271,21 +271,25 @@ export default function Dashboard() {
       });
     });
 
+    const isCompleted = !isArchive && totalItems > 0 && verifiedItems === totalItems;
+    const isRead = isArchive && doc.is_read;
+    const isDone = isCompleted || isRead;
+
     return (
       <div
         key={doc.id}
         onClick={() => navigate(`/document/${doc.id}${getTabFromSearchMatch(doc._searchMatch?.field)}`)}
-        className={`group relative flex flex-col justify-between rounded-xl bg-white p-4 sm:p-6 shadow-sm border transition-all cursor-pointer hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] ${getTypeCardClass(doc.type)}`}
+        className={`group relative flex flex-col justify-between rounded-xl p-4 sm:p-6 shadow-sm border transition-all cursor-pointer hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] ${getTypeCardClass(doc.type)} ${isDone ? 'bg-slate-50/50 opacity-60 hover:opacity-100 grayscale-[0.5]' : 'bg-white'}`}
       >
         <div>
           <div className="flex items-start justify-between gap-4">
             <h2 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-gray-600 transition-colors">
-              {!isArchive && totalItems > 0 && verifiedItems === totalItems && (
+              {isCompleted && (
                 <span className="mr-2 inline-flex items-center rounded-md bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20 align-middle">
                   ✓ 完了
                 </span>
               )}
-              {isArchive && doc.is_read && (
+              {isRead && (
                 <span className="mr-2 inline-flex items-center rounded-md bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20 align-middle">
                   ✓ 既読
                 </span>
@@ -386,11 +390,15 @@ export default function Dashboard() {
       });
     });
 
+    const isCompleted = !isArchive && totalItems > 0 && verifiedItems === totalItems;
+    const isRead = isArchive && doc.is_read;
+    const isDone = isCompleted || isRead;
+
     return (
       <div
         key={doc.id}
         onClick={() => navigate(`/document/${doc.id}${getTabFromSearchMatch(doc._searchMatch?.field)}`)}
-        className="group flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 sm:p-4 bg-white border-b border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
+        className={`group flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 sm:p-4 border-b border-gray-200 cursor-pointer transition-colors ${isDone ? 'bg-slate-50/50 opacity-60 hover:opacity-100 grayscale-[0.5]' : 'bg-white hover:bg-gray-50'}`}
       >
         <div className="flex items-center gap-3 overflow-hidden flex-1">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 flex-1 min-w-0">
@@ -405,12 +413,12 @@ export default function Dashboard() {
               )}
             </div>
             <h2 className="text-sm font-bold text-gray-900 truncate">
-              {!isArchive && totalItems > 0 && verifiedItems === totalItems && (
+              {isCompleted && (
                 <span className="mr-2 inline-flex items-center rounded-md bg-green-50 px-1.5 py-0.5 text-[10px] font-medium text-green-700 ring-1 ring-inset ring-green-600/20 align-middle">
                   ✓ 完了
                 </span>
               )}
-              {isArchive && doc.is_read && (
+              {isRead && (
                 <span className="mr-2 inline-flex items-center rounded-md bg-green-50 px-1.5 py-0.5 text-[10px] font-medium text-green-700 ring-1 ring-inset ring-green-600/20 align-middle">
                   ✓ 既読
                 </span>
