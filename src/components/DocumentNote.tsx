@@ -2,9 +2,14 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
+import Image from '@tiptap/extension-image';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
 import { Extension, wrappingInputRule } from '@tiptap/core';
-import { ChevronDown, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { ChevronDown, ChevronRight, CheckCircle2, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { v4 as uuidv4 } from 'uuid';
 
 interface DocumentNoteProps {
   documentId: string;
@@ -29,7 +34,7 @@ const CustomBulletListInputRule = Extension.create({
 // 「・」＋エンター で箇条書きを開始するショートカット
 const CustomBulletListShortcut = Extension.create({
   name: 'customBulletListShortcut',
-  priority: 1000, // デフォルトのEnter（改行）より先に判定させるために優先度を高くする
+  priority: 1000,
   addKeyboardShortcuts() {
     return {
       Enter: () => {
@@ -41,75 +46,100 @@ const CustomBulletListShortcut = Extension.create({
 
         const currentLineText = $from.parent.textContent;
 
-        // 「・」だけが入力されている状態でEnterが押された場合
         if (currentLineText.trim() === '・') {
           return this.editor
             .chain()
-            // 「・」を削除
             .deleteRange({ from: $from.pos - currentLineText.length, to: $from.pos })
-            // 箇条書きリストに変換
             .toggleList('bulletList', 'listItem')
             .run();
         }
-
         return false;
       },
     };
   },
 });
 
+// 画像アップロード用のProseMirrorプラグイン
+const ImageUploadPlugin = (onUploadStart: () => void, onUploadEnd: () => void) => {
+  return new Plugin({
+    key: new PluginKey('imageUpload'),
+    props: {
+      handlePaste(view, event) {
+        const items = Array.from(event.clipboardData?.items || []);
+        const image = items.find(item => item.type.startsWith('image/'));
+        
+        if (image) {
+          const file = image.getAsFile();
+          if (file) {
+            event.preventDefault();
+            uploadImage(file, view, onUploadStart, onUploadEnd);
+            return true;
+          }
+        }
+        return false;
+      },
+      handleDrop(view, event, _slice, moved) {
+        if (!moved && event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+          const file = event.dataTransfer.files[0];
+          if (file.type.startsWith('image/')) {
+            event.preventDefault();
+            uploadImage(file, view, onUploadStart, onUploadEnd);
+            return true;
+          }
+        }
+        return false;
+      }
+    }
+  });
+};
+
+const uploadImage = async (file: File, view: any, onUploadStart: () => void, onUploadEnd: () => void) => {
+  onUploadStart();
+  try {
+    const fileExt = file.name.split('.').pop() || 'png';
+    const fileName = `${uuidv4()}.${fileExt}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from('note_images')
+      .upload(fileName, file);
+      
+    if (uploadError) throw uploadError;
+    
+    const { data } = supabase.storage
+      .from('note_images')
+      .getPublicUrl(fileName);
+      
+    // エディタに画像を挿入
+    const { schema } = view.state;
+    const node = schema.nodes.image.create({ src: data.publicUrl });
+    const transaction = view.state.tr.replaceSelectionWith(node);
+    view.dispatch(transaction);
+    
+  } catch (err) {
+    console.error('Image upload failed:', err);
+    alert('画像のアップロードに失敗しました');
+  } finally {
+    onUploadEnd();
+  }
+};
+
 export const DocumentNote: React.FC<DocumentNoteProps> = ({ documentId, initialNote, sections }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 初期テンプレートの生成（保存されたノートがない場合）
   const getInitialContent = () => {
     if (initialNote) return initialNote;
-    
-    // セクション情報からテンプレートを作成
     if (sections && sections.length > 0) {
-      const template = sections.map(sec => `<h2>${sec.title}</h2><p></p>`).join('');
-      return template;
+      return sections.map(sec => `<h2>${sec.title}</h2><p></p>`).join('');
     }
     return '<h2>ノート</h2><p></p>';
   };
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        bulletList: {
-          keepMarks: true,
-          keepAttributes: false,
-        },
-        orderedList: {
-          keepMarks: true,
-          keepAttributes: false,
-        },
-      }),
-      Underline,
-      CustomBulletListInputRule,
-      CustomBulletListShortcut,
-    ],
-    content: getInitialContent(),
-    editorProps: {
-      attributes: {
-        class: 'prose prose-sm max-w-none focus:outline-none min-h-[200px] p-5 bg-white rounded-lg border border-gray-200 font-sans text-gray-800 prose-p:leading-relaxed prose-li:leading-relaxed prose-p:my-1 prose-li:my-0 prose-ul:my-2 prose-headings:font-bold prose-headings:mb-2 prose-headings:mt-4 first:prose-headings:mt-0',
-      },
-    },
-    onUpdate: ({ editor }) => {
-      // 入力があるたびにデバウンスして自動保存
-      const html = editor.getHTML();
-      handleAutoSave(html);
-    },
-  });
-
   const handleAutoSave = useCallback((content: string) => {
     setSaveMessage('保存中...');
-
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
 
     saveTimeoutRef.current = setTimeout(async () => {
       try {
@@ -125,19 +155,55 @@ export const DocumentNote: React.FC<DocumentNoteProps> = ({ documentId, initialN
         console.error('Failed to save note:', err);
         setSaveMessage('保存に失敗しました');
       }
-    }, 1000); // 1秒間入力がなければ保存
+    }, 1000);
   }, [documentId]);
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        bulletList: { keepMarks: true, keepAttributes: false },
+        orderedList: { keepMarks: true, keepAttributes: false },
+      }),
+      Underline,
+      Image.configure({
+        allowBase64: true,
+        HTMLAttributes: {
+          class: 'rounded-lg max-w-full',
+        },
+      }),
+      TaskList,
+      TaskItem.configure({
+        nested: true,
+      }),
+      CustomBulletListInputRule,
+      CustomBulletListShortcut,
+      Extension.create({
+        name: 'imageUploadExtension',
+        addProseMirrorPlugins() {
+          return [ImageUploadPlugin(() => setIsUploading(true), () => setIsUploading(false))];
+        },
+      }),
+    ],
+    content: getInitialContent(),
+    editorProps: {
+      attributes: {
+        // Tailwind Typography でチェックリストが綺麗に表示されるように調整
+        class: 'prose prose-sm max-w-none focus:outline-none min-h-[200px] p-5 bg-white rounded-lg border border-gray-200 font-sans text-gray-800 prose-p:leading-relaxed prose-li:leading-relaxed prose-p:my-1 prose-li:my-0 prose-ul:my-2 prose-headings:font-bold prose-headings:mb-2 prose-headings:mt-4 first:prose-headings:mt-0 prose-img:rounded-xl prose-img:shadow-sm prose-img:my-4',
+      },
+    },
+    onUpdate: ({ editor }) => {
+      handleAutoSave(editor.getHTML());
+    },
+  });
 
   useEffect(() => {
     return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
   }, []);
 
   return (
-    <div className="mb-8 border border-gray-200 rounded-xl bg-gray-50 overflow-hidden shadow-sm">
+    <div className="mb-8 border border-gray-200 rounded-xl bg-gray-50 overflow-hidden shadow-sm relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between p-4 bg-white hover:bg-gray-50 transition-colors"
@@ -158,12 +224,24 @@ export const DocumentNote: React.FC<DocumentNoteProps> = ({ documentId, initialN
 
       {isOpen && (
         <div className="p-4 bg-gray-50 border-t border-gray-200">
-          <div className="mb-2 text-xs text-gray-500 flex gap-4">
-            <span>💡 箇条書き: <kbd className="px-1 py-0.5 bg-gray-200 rounded">・</kbd> + <kbd className="px-1 py-0.5 bg-gray-200 rounded">Enter</kbd> (またはスペース)</span>
-            <span>💡 太字: <kbd className="px-1 py-0.5 bg-gray-200 rounded">Ctrl+B</kbd></span>
-            <span>💡 アンダーライン: <kbd className="px-1 py-0.5 bg-gray-200 rounded">Ctrl+U</kbd></span>
+          <div className="mb-3 text-xs text-gray-500 flex flex-wrap gap-4 bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
+            <span>💡 箇条書き: <kbd className="px-1 py-0.5 bg-gray-100 rounded border">・</kbd> + <kbd className="px-1 py-0.5 bg-gray-100 rounded border">Enter</kbd></span>
+            <span>💡 チェックリスト: <kbd className="px-1 py-0.5 bg-gray-100 rounded border">[ ]</kbd> + <kbd className="px-1 py-0.5 bg-gray-100 rounded border">スペース</kbd></span>
+            <span>💡 画像: コピペ または ドラッグ＆ドロップ</span>
+            <span>💡 太字: <kbd className="px-1 py-0.5 bg-gray-100 rounded border">Ctrl+B</kbd></span>
           </div>
-          <EditorContent editor={editor} />
+          
+          <div className="relative">
+            <EditorContent editor={editor} />
+            {isUploading && (
+              <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center rounded-lg border border-gray-200 z-10">
+                <div className="flex items-center gap-2 text-blue-600 font-bold bg-white px-4 py-2 rounded-full shadow-md">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  画像をアップロード中...
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
