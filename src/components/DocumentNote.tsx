@@ -29,6 +29,7 @@ const CustomBulletListInputRule = Extension.create({
 // 「・」＋エンター で箇条書きを開始するショートカット
 const CustomBulletListShortcut = Extension.create({
   name: 'customBulletListShortcut',
+  priority: 1000, // デフォルトのEnter（改行）より先に判定させるために優先度を高くする
   addKeyboardShortcuts() {
     return {
       Enter: () => {
@@ -41,11 +42,11 @@ const CustomBulletListShortcut = Extension.create({
         const currentLineText = $from.parent.textContent;
 
         // 「・」だけが入力されている状態でEnterが押された場合
-        if (currentLineText === '・') {
+        if (currentLineText.trim() === '・') {
           return this.editor
             .chain()
             // 「・」を削除
-            .deleteRange({ from: $from.pos - 1, to: $from.pos })
+            .deleteRange({ from: $from.pos - currentLineText.length, to: $from.pos })
             // 箇条書きリストに変換
             .toggleList('bulletList', 'listItem')
             .run();
