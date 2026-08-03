@@ -64,7 +64,7 @@ export default function Dashboard() {
 
   const updateSearchParam = (key: string, value: string) => {
     const nextParams = new URLSearchParams(searchParams);
-    if (value === 'all' || value === 'none' || !value) {
+    if (value === 'all' || !value) {
       nextParams.delete(key);
     } else {
       nextParams.set(key, value);
