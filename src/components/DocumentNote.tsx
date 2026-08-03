@@ -3,7 +3,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import { Extension, wrappingInputRule } from '@tiptap/core';
-import { ChevronDown, ChevronRight, Save, CheckCircle2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 interface DocumentNoteProps {
@@ -28,9 +28,8 @@ const CustomBulletListInputRule = Extension.create({
 
 export const DocumentNote: React.FC<DocumentNoteProps> = ({ documentId, initialNote, sections }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 初期テンプレートの生成（保存されたノートがない場合）
   const getInitialContent = () => {
@@ -73,7 +72,6 @@ export const DocumentNote: React.FC<DocumentNoteProps> = ({ documentId, initialN
   });
 
   const handleAutoSave = useCallback((content: string) => {
-    setIsSaving(true);
     setSaveMessage('保存中...');
 
     if (saveTimeoutRef.current) {
@@ -93,8 +91,6 @@ export const DocumentNote: React.FC<DocumentNoteProps> = ({ documentId, initialN
       } catch (err) {
         console.error('Failed to save note:', err);
         setSaveMessage('保存に失敗しました');
-      } finally {
-        setIsSaving(false);
       }
     }, 1000); // 1秒間入力がなければ保存
   }, [documentId]);

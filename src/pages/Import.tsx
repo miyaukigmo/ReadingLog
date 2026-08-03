@@ -68,6 +68,7 @@ export default function Import() {
             categories: doc.categories || [],
             summary: doc.summary || '',
             notebookLmReport: doc.notebookLmReport || '',
+            personalNote: doc.personalNote || '',
             keyPoints: doc.keyPoints || [],
             is_read: doc.is_read || false,
             sections: (doc.sections || []).map((sec: any) => ({
@@ -123,6 +124,7 @@ export default function Import() {
         categories: previewData.document.categories,
         summary: previewData.document.summary,
         notebook_lm_report: previewData.document.notebookLmReport,
+        personal_note: previewData.document.personalNote,
         key_points: previewData.document.keyPoints,
         is_read: previewData.document.is_read ?? false,
       }).select('id').single();
