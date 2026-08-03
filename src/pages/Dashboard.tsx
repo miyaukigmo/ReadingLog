@@ -289,7 +289,7 @@ export default function Dashboard() {
           docs: finalDocs
         };
       });
-  }, [filteredDocuments, groupBy]);
+  }, [filteredDocuments, groupBy, groupOrder]);
 
 
   const getTabFromSearchMatch = (field?: string) => {
