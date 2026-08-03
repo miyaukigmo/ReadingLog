@@ -128,6 +128,7 @@ export const DocumentNote: React.FC<DocumentNoteProps> = ({ documentId, initialN
   const [saveMessage, setSaveMessage] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previousImagesRef = useRef<string[]>([]);
 
   const getInitialContent = () => {
     if (initialNote) return initialNote;
@@ -192,9 +193,44 @@ export const DocumentNote: React.FC<DocumentNoteProps> = ({ documentId, initialN
       },
     },
     onUpdate: ({ editor }) => {
-      handleAutoSave(editor.getHTML());
+      const html = editor.getHTML();
+
+      // 画像の削除検知とStorageからの削除
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = html;
+      const currentImages = Array.from(tempDiv.querySelectorAll('img')).map(img => img.src);
+      
+      const deletedImages = previousImagesRef.current.filter(src => !currentImages.includes(src));
+      
+      if (deletedImages.length > 0) {
+        deletedImages.forEach(async (src) => {
+          try {
+            const urlObj = new URL(src);
+            const pathSegments = urlObj.pathname.split('/');
+            const fileName = pathSegments[pathSegments.length - 1];
+            if (fileName) {
+              await supabase.storage.from('note_images').remove([fileName]);
+              console.log(`Deleted image from storage: ${fileName}`);
+            }
+          } catch (err) {
+            console.error('Failed to delete image:', err);
+          }
+        });
+      }
+      
+      previousImagesRef.current = currentImages;
+
+      handleAutoSave(html);
     },
   });
+
+  // 初回マウント時に、初期コンテンツ内の画像URLを抽出してセットする
+  useEffect(() => {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = getInitialContent();
+    const imgs = Array.from(tempDiv.querySelectorAll('img')).map(img => img.src);
+    previousImagesRef.current = imgs;
+  }, [initialNote, sections]);
 
   useEffect(() => {
     return () => {
