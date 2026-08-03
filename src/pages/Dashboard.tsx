@@ -45,6 +45,7 @@ export default function Dashboard() {
   };
 
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const [expandedSeries, setExpandedSeries] = useState<Record<string, boolean>>({});
 
   const toggleGroup = (groupName: string) => {
     setExpandedGroups(prev => ({
@@ -234,10 +235,46 @@ export default function Dashboard() {
         if (countDiff !== 0) return countDiff;
         return a.localeCompare(b, 'ja');
       })
-      .map(key => ({
-        groupName: key,
-        docs: groups[key]
-      }));
+      .map(key => {
+        const groupDocs = groups[key];
+        
+        // シリーズでのサブグループ化
+        const finalDocs: any[] = [];
+        const seriesMap: Record<string, any[]> = {};
+        
+        groupDocs.forEach(doc => {
+          if (doc.series_title) {
+            if (!seriesMap[doc.series_title]) seriesMap[doc.series_title] = [];
+            seriesMap[doc.series_title].push(doc);
+          } else {
+            finalDocs.push(doc);
+          }
+        });
+        
+        Object.keys(seriesMap).forEach(seriesTitle => {
+          const sDocs = seriesMap[seriesTitle];
+          sDocs.sort((a, b) => (a.series_number || 0) - (b.series_number || 0));
+          finalDocs.push({
+            isSeriesGroup: true,
+            seriesTitle,
+            docs: sDocs,
+            created_at: sDocs[0].created_at // ソート用
+          });
+        });
+        
+        // 元のソート順（タイトル等）に合わせて再ソートが必要な場合はここで行うが、
+        // 今回は created_at 降順をベースにしつつシリーズはまとめる
+        finalDocs.sort((a, b) => {
+          const dateA = new Date(a.created_at || 0).getTime();
+          const dateB = new Date(b.created_at || 0).getTime();
+          return dateB - dateA;
+        });
+
+        return {
+          groupName: key,
+          docs: finalDocs
+        };
+      });
   }, [filteredDocuments, groupBy]);
 
 
@@ -443,6 +480,56 @@ export default function Dashboard() {
     );
   };
 
+  const toggleSeries = (seriesTitle: string) => {
+    setExpandedSeries(prev => ({
+      ...prev,
+      [seriesTitle]: !prev[seriesTitle]
+    }));
+  };
+
+  const renderSeriesGroup = (seriesData: any) => {
+    const isOpen = expandedSeries[seriesData.seriesTitle];
+    const docs = seriesData.docs;
+    
+    return (
+      <div key={`series-${seriesData.seriesTitle}`} className={`col-span-1 md:col-span-2 lg:col-span-3 bg-white rounded-xl shadow-sm border border-blue-200 overflow-hidden mb-2`}>
+        <button
+          onClick={() => toggleSeries(seriesData.seriesTitle)}
+          className="w-full flex items-center justify-between p-4 bg-blue-50/50 hover:bg-blue-50 transition-colors text-left"
+        >
+          <div className="flex items-center gap-3">
+            {isOpen ? <ChevronDown className="h-5 w-5 text-blue-500" /> : <ChevronRight className="h-5 w-5 text-blue-500" />}
+            <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-blue-500" />
+              {seriesData.seriesTitle}
+              <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                全 {docs.length} 件
+              </span>
+            </h3>
+          </div>
+        </button>
+        
+        {isOpen && (
+          <div className="p-4 bg-gray-50/50 border-t border-blue-100">
+            {viewMode === 'card' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {docs.map((doc: any) => renderCard(doc))}
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                {docs.map((doc: any) => (
+                  <div key={doc.id}>
+                    {renderList(doc)}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
       <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10">
@@ -600,13 +687,17 @@ export default function Dashboard() {
                     <div className={isGrouped ? "p-4 sm:p-6 bg-gray-50/50" : ""}>
                       {viewMode === 'card' ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                          {group.docs.map(doc => renderCard(doc))}
+                          {group.docs.map(item => item.isSeriesGroup ? renderSeriesGroup(item) : renderCard(item))}
                         </div>
                       ) : (
-                        <div className={isGrouped ? "bg-white rounded-lg border border-gray-200 overflow-hidden" : "bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"}>
-                          {group.docs.map((doc) => (
-                            <div key={doc.id}>
-                              {renderList(doc)}
+                        <div className={isGrouped ? "bg-transparent" : "bg-transparent"}>
+                          {group.docs.map((item) => (
+                            <div key={item.isSeriesGroup ? `s-${item.seriesTitle}` : item.id} className="mb-2">
+                              {item.isSeriesGroup ? renderSeriesGroup(item) : (
+                                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                                  {renderList(item)}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>

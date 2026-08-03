@@ -69,6 +69,8 @@ export default function Import() {
             summary: doc.summary || '',
             notebookLmReport: doc.notebookLmReport || '',
             personalNote: doc.personalNote || '',
+            seriesTitle: doc.seriesTitle || '',
+            seriesNumber: doc.seriesNumber || null,
             keyPoints: doc.keyPoints || [],
             is_read: doc.is_read || false,
             sections: (doc.sections || []).map((sec: any) => ({
@@ -125,6 +127,8 @@ export default function Import() {
         summary: previewData.document.summary,
         notebook_lm_report: previewData.document.notebookLmReport,
         personal_note: previewData.document.personalNote,
+        series_title: previewData.document.seriesTitle,
+        series_number: previewData.document.seriesNumber,
         key_points: previewData.document.keyPoints,
         is_read: previewData.document.is_read ?? false,
       }).select('id').single();

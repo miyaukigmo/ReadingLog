@@ -13,6 +13,7 @@ export default function DocumentEdit() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [seriesList, setSeriesList] = useState<string[]>([]);
 
   const [deletedSections, setDeletedSections] = useState<string[]>([]);
   const [deletedItems, setDeletedItems] = useState<string[]>([]);
@@ -20,7 +21,20 @@ export default function DocumentEdit() {
 
   useEffect(() => {
     if (id) fetchDocument();
+    fetchSeriesList();
   }, [id]);
+
+  const fetchSeriesList = async () => {
+    const { data } = await supabase
+      .from('documents')
+      .select('series_title')
+      .not('series_title', 'is', null)
+      .neq('series_title', '');
+    if (data) {
+      const unique = Array.from(new Set(data.map(d => d.series_title)));
+      setSeriesList(unique as string[]);
+    }
+  };
 
   const fetchDocument = async () => {
     setLoading(true);
@@ -67,6 +81,8 @@ export default function DocumentEdit() {
           categories: doc.categories,
           summary: doc.summary,
           notebook_lm_report: doc.notebook_lm_report,
+          series_title: doc.series_title || null,
+          series_number: doc.series_number || null,
           key_points: doc.key_points,
           updated_at: new Date().toISOString(),
         })
@@ -369,6 +385,20 @@ export default function DocumentEdit() {
                 value={doc.title} onChange={e => updateDocField('title', e.target.value)} />
             </div>
             
+            <div>
+              <label className="block text-sm font-medium text-gray-700">シリーズ名（任意）</label>
+              <input type="text" list="series-list" className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                value={doc.series_title || ''} onChange={e => updateDocField('series_title', e.target.value)} placeholder="例: 愛は全部キモい" />
+              <datalist id="series-list">
+                {seriesList.map(s => <option key={s} value={s} />)}
+              </datalist>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">話数・巻数（任意）</label>
+              <input type="number" className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                value={doc.series_number || ''} onChange={e => updateDocField('series_number', e.target.value ? Number(e.target.value) : null)} placeholder="例: 14" />
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700">用途 (Purpose)</label>
               <select className="mt-1 block w-full rounded-md border border-purple-300 px-3 py-2 text-sm bg-purple-50 font-bold"

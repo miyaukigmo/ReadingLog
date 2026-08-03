@@ -19,6 +19,8 @@ create table public.documents (
   summary text,
   notebook_lm_report text,
   personal_note text,
+  series_title text,
+  series_number numeric,
   key_points jsonb default '[]'::jsonb,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
@@ -229,16 +231,16 @@ begin
 
   -- 5. データの復元 (INSERT)
   -- Documents
-  insert into public.documents (id, purpose, type, title, authors, categories, summary, notebook_lm_report, personal_note, key_points, created_at, updated_at)
+  insert into public.documents (id, purpose, type, title, authors, categories, summary, notebook_lm_report, personal_note, series_title, series_number, key_points, created_at, updated_at)
   select 
     id, purpose, type, title, 
     coalesce(authors, '[]'::jsonb), 
     coalesce(categories, '[]'::jsonb), 
-    summary, notebook_lm_report, personal_note,
+    summary, notebook_lm_report, personal_note, series_title, series_number,
     coalesce(key_points, '[]'::jsonb), 
     created_at, updated_at
   from jsonb_to_recordset(backup_data->'documents') as x(
-    id uuid, purpose text, type text, title text, authors jsonb, categories jsonb, summary text, notebook_lm_report text, personal_note text, key_points jsonb, created_at timestamp with time zone, updated_at timestamp with time zone
+    id uuid, purpose text, type text, title text, authors jsonb, categories jsonb, summary text, notebook_lm_report text, personal_note text, series_title text, series_number numeric, key_points jsonb, created_at timestamp with time zone, updated_at timestamp with time zone
   );
   get diagnostics doc_count = row_count;
 
