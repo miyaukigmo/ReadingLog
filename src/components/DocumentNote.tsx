@@ -12,7 +12,7 @@ interface DocumentNoteProps {
   sections: { title: string }[];
 }
 
-// 「・」で箇条書きを開始するためのカスタム拡張
+// 「・」で箇条書きを開始するためのカスタム拡張（・＋スペース）
 const CustomBulletListInputRule = Extension.create({
   name: 'customBulletListRule',
   addInputRules() {
@@ -23,6 +23,37 @@ const CustomBulletListInputRule = Extension.create({
         type: this.editor.schema.nodes.bulletList,
       }),
     ];
+  },
+});
+
+// 「・」＋エンター で箇条書きを開始するショートカット
+const CustomBulletListShortcut = Extension.create({
+  name: 'customBulletListShortcut',
+  addKeyboardShortcuts() {
+    return {
+      Enter: () => {
+        const { state } = this.editor;
+        const { selection } = state;
+        const { $from, empty } = selection;
+
+        if (!empty) return false;
+
+        const currentLineText = $from.parent.textContent;
+
+        // 「・」だけが入力されている状態でEnterが押された場合
+        if (currentLineText === '・') {
+          return this.editor
+            .chain()
+            // 「・」を削除
+            .deleteRange({ from: $from.pos - 1, to: $from.pos })
+            // 箇条書きリストに変換
+            .toggleList('bulletList', 'listItem')
+            .run();
+        }
+
+        return false;
+      },
+    };
   },
 });
 
@@ -57,11 +88,12 @@ export const DocumentNote: React.FC<DocumentNoteProps> = ({ documentId, initialN
       }),
       Underline,
       CustomBulletListInputRule,
+      CustomBulletListShortcut,
     ],
     content: getInitialContent(),
     editorProps: {
       attributes: {
-        class: 'prose prose-sm sm:prose-base lg:prose-lg max-w-none focus:outline-none min-h-[200px] p-4 bg-white rounded-lg border border-gray-200',
+        class: 'prose prose-sm max-w-none focus:outline-none min-h-[200px] p-5 bg-white rounded-lg border border-gray-200 font-sans text-gray-800 prose-p:leading-relaxed prose-li:leading-relaxed prose-p:my-1 prose-li:my-0 prose-ul:my-2 prose-headings:font-bold prose-headings:mb-2 prose-headings:mt-4 first:prose-headings:mt-0',
       },
     },
     onUpdate: ({ editor }) => {
@@ -126,7 +158,7 @@ export const DocumentNote: React.FC<DocumentNoteProps> = ({ documentId, initialN
       {isOpen && (
         <div className="p-4 bg-gray-50 border-t border-gray-200">
           <div className="mb-2 text-xs text-gray-500 flex gap-4">
-            <span>💡 箇条書き: <kbd className="px-1 py-0.5 bg-gray-200 rounded">・</kbd> + スペース</span>
+            <span>💡 箇条書き: <kbd className="px-1 py-0.5 bg-gray-200 rounded">・</kbd> + <kbd className="px-1 py-0.5 bg-gray-200 rounded">Enter</kbd> (またはスペース)</span>
             <span>💡 太字: <kbd className="px-1 py-0.5 bg-gray-200 rounded">Ctrl+B</kbd></span>
             <span>💡 アンダーライン: <kbd className="px-1 py-0.5 bg-gray-200 rounded">Ctrl+U</kbd></span>
           </div>
