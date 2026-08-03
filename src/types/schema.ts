@@ -66,6 +66,7 @@ export const documentSchemaV11 = z.object({
   categories: z.array(z.string()).optional().default([]),
   summary: z.string().optional().default(''),
   notebookLmReport: z.string().optional().default(''),
+  personalNote: z.string().optional().default(''),
   keyPoints: z.array(z.string()).optional().default([]),
   sections: z.array(sectionSchemaV11).optional().default([]),
   connections: z.array(connectionSchema).optional().default([]),
@@ -171,6 +172,7 @@ export const backupSchemaV1 = z.object({
       categories: z.array(z.string()).nullable().optional(),
       summary: z.string().nullable().optional(),
       notebook_lm_report: z.string().nullable().optional(),
+      personal_note: z.string().nullable().optional(),
       key_points: z.array(z.string()).nullable().optional(),
       created_at: z.string(),
       updated_at: z.string()
@@ -221,6 +223,7 @@ export const backupSchemaV11 = z.object({
       categories: z.array(z.string()).nullable().optional(),
       summary: z.string().nullable().optional(),
       notebook_lm_report: z.string().nullable().optional(),
+      personal_note: z.string().nullable().optional(),
       key_points: z.array(z.string()).nullable().optional(),
       is_read: z.boolean().nullable().optional(),
       created_at: z.string(),

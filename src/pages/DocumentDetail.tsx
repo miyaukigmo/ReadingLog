@@ -7,6 +7,7 @@ import { DOCUMENT_TYPE_LABELS, CONNECTION_TYPE_LABELS, CONNECTION_BASIS_LABELS, 
 import { HighlightText } from '@/components/HighlightText';
 import { TimelineTab } from '@/components/TimelineTab';
 import { PeopleTab } from '@/components/PeopleTab';
+import { DocumentNote } from '@/components/DocumentNote';
 
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>();
@@ -546,6 +547,13 @@ export default function DocumentDetail() {
       </div>
 
       <main className="mx-auto max-w-3xl px-4 py-2 sm:px-6 lg:px-8 space-y-8">
+        
+        {/* パーソナルノート */}
+        <DocumentNote 
+          documentId={doc.id}
+          initialNote={doc.personal_note || doc.personalNote || null}
+          sections={doc.sections || []}
+        />
         
         {/* 検索バー */}
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex items-center gap-3">
