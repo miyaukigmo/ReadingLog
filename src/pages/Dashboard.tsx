@@ -497,12 +497,12 @@ export default function Dashboard() {
   const toggleSeries = (seriesTitle: string) => {
     setExpandedSeries(prev => ({
       ...prev,
-      [seriesTitle]: prev[seriesTitle] === false ? true : false
+      [seriesTitle]: prev[seriesTitle] ? false : true
     }));
   };
 
   const renderSeriesGroup = (seriesData: any) => {
-    const isOpen = expandedSeries[seriesData.seriesTitle] !== false;
+    const isOpen = expandedSeries[seriesData.seriesTitle] === true;
     const docs = seriesData.docs;
     
     return (
