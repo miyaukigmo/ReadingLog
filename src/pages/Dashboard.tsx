@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Search, BookOpen, FileText, Database, Link as LinkIcon, FileCheck, LayoutGrid, List, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Search, BookOpen, FileText, Database, Link as LinkIcon, FileCheck, LayoutGrid, List, ChevronDown, ChevronRight, ArrowUp, ArrowDown } from 'lucide-react';
 import { DOCUMENT_TYPE_LABELS, getLabel, getTypeBadgeClass, getTypeCardClass } from '@/lib/constants';
 import { HighlightText } from '@/components/HighlightText';
 
@@ -32,7 +32,7 @@ export default function Dashboard() {
   const selectedPurpose = searchParams.get('purpose') || 'all';
   const selectedType = searchParams.get('type') || 'all';
   const selectedCategory = searchParams.get('category') || 'all';
-  const groupBy = searchParams.get('groupBy') || 'none';
+  const groupBy = searchParams.get('groupBy') || 'type';
 
   // 表示形式（ローカルストレージ）
   const [viewMode, setViewMode] = useState<'card' | 'list'>(() => {
@@ -50,9 +50,17 @@ export default function Dashboard() {
   const toggleGroup = (groupName: string) => {
     setExpandedGroups(prev => ({
       ...prev,
-      [groupName]: !prev[groupName]
+      [groupName]: prev[groupName] === false ? true : false
     }));
   };
+
+  const [groupOrder, setGroupOrder] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('readingLogGroupOrder') || '[]');
+    } catch {
+      return [];
+    }
+  });
 
   const updateSearchParam = (key: string, value: string) => {
     const nextParams = new URLSearchParams(searchParams);
@@ -228,9 +236,15 @@ export default function Dashboard() {
       groups[key].sort((a, b) => (a.title || '').localeCompare(b.title || '', 'ja'));
     });
 
-    // グループ自体のソート（件数が多い順、同数ならあいうえお順）
+    // グループ自体のソート（ユーザー設定順、それ以外は件数が多い順）
     return Object.keys(groups)
       .sort((a, b) => {
+        const idxA = groupOrder.indexOf(a);
+        const idxB = groupOrder.indexOf(b);
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+        
         const countDiff = groups[b].length - groups[a].length;
         if (countDiff !== 0) return countDiff;
         return a.localeCompare(b, 'ja');
@@ -483,12 +497,12 @@ export default function Dashboard() {
   const toggleSeries = (seriesTitle: string) => {
     setExpandedSeries(prev => ({
       ...prev,
-      [seriesTitle]: !prev[seriesTitle]
+      [seriesTitle]: prev[seriesTitle] === false ? true : false
     }));
   };
 
   const renderSeriesGroup = (seriesData: any) => {
-    const isOpen = expandedSeries[seriesData.seriesTitle];
+    const isOpen = expandedSeries[seriesData.seriesTitle] !== false;
     const docs = seriesData.docs;
     
     return (
@@ -660,10 +674,27 @@ export default function Dashboard() {
           <div className="space-y-6">
             {groupedDocuments.map((group, groupIdx) => {
               const isGrouped = group.groupName !== null;
-              const isExpanded = isGrouped ? expandedGroups[group.groupName] : true;
+              const isExpanded = isGrouped ? expandedGroups[group.groupName] !== false : true;
+
+              const moveGroup = (e: React.MouseEvent, direction: 'up' | 'down') => {
+                e.stopPropagation();
+                const currentOrder = groupedDocuments.map(g => g.groupName as string);
+                const idx = currentOrder.indexOf(group.groupName as string);
+                if (idx === -1) return;
+                
+                if (direction === 'up' && idx > 0) {
+                  [currentOrder[idx - 1], currentOrder[idx]] = [currentOrder[idx], currentOrder[idx - 1]];
+                } else if (direction === 'down' && idx < currentOrder.length - 1) {
+                  [currentOrder[idx + 1], currentOrder[idx]] = [currentOrder[idx], currentOrder[idx + 1]];
+                } else {
+                  return;
+                }
+                setGroupOrder(currentOrder);
+                localStorage.setItem('readingLogGroupOrder', JSON.stringify(currentOrder));
+              };
 
               return (
-                <div key={groupIdx} className={isGrouped ? "bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden" : ""}>
+                <div key={group.groupName || 'none'} className={isGrouped ? "bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden" : ""}>
                   {isGrouped && (
                     <button
                       onClick={() => toggleGroup(group.groupName as string)}
@@ -675,11 +706,17 @@ export default function Dashboard() {
                           {group.docs.length}
                         </span>
                       </h3>
-                      {isExpanded ? (
-                        <ChevronDown className="h-5 w-5 text-gray-400" />
-                      ) : (
-                        <ChevronRight className="h-5 w-5 text-gray-400" />
-                      )}
+                      <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-0 mr-3" onClick={e => e.stopPropagation()}>
+                          <button onClick={(e) => moveGroup(e, 'up')} disabled={groupIdx === 0} className="p-1.5 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-900 disabled:opacity-30"><ArrowUp className="h-4 w-4"/></button>
+                          <button onClick={(e) => moveGroup(e, 'down')} disabled={groupIdx === groupedDocuments.length - 1} className="p-1.5 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-900 disabled:opacity-30"><ArrowDown className="h-4 w-4"/></button>
+                        </div>
+                        {isExpanded ? (
+                          <ChevronDown className="h-5 w-5 text-gray-400" />
+                        ) : (
+                          <ChevronRight className="h-5 w-5 text-gray-400" />
+                        )}
+                      </div>
                     </button>
                   )}
                   
