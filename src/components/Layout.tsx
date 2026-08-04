@@ -1,6 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { BookOpen, Brain, Settings, Wrench, Hash, Clock, Users, Compass } from 'lucide-react';
-import QuickFlashcard from './QuickFlashcard';
 
 export default function Layout() {
   const location = useLocation();
@@ -66,9 +65,6 @@ export default function Layout() {
       <main className="flex-1 md:ml-64 pb-[calc(env(safe-area-inset-bottom)+5rem)] md:pb-0">
         <Outlet />
       </main>
-
-      {/* 右下のクイック追加ボタン */}
-      <QuickFlashcard />
     </div>
   );
 }

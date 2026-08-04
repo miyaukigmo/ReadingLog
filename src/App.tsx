@@ -79,8 +79,15 @@ const router = createBrowserRouter([
   }
 ]);
 
+import QuickFlashcard from './components/QuickFlashcard';
+
 function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <>
+      <RouterProvider router={router} />
+      <QuickFlashcard />
+    </>
+  );
 }
 
 export default App;
