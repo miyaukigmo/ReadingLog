@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, EditorContent, NodeViewWrapper, NodeViewContent, ReactNodeViewRenderer } from '@tiptap/react';
+import Heading from '@tiptap/extension-heading';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Image from '@tiptap/extension-image';
@@ -123,6 +125,99 @@ const uploadImage = async (file: File, view: any, onUploadStart: () => void, onU
   }
 };
 
+const HeadingNodeView = (props: any) => {
+  const { node, updateAttributes } = props;
+  const { collapsed } = node.attrs;
+  const level = node.attrs.level as 1 | 2 | 3 | 4 | 5 | 6;
+
+  const toggleCollapse = () => {
+    updateAttributes({ collapsed: !collapsed });
+  };
+
+  const Tag = `h${level}` as any;
+
+  return (
+    <NodeViewWrapper className="heading-wrapper relative group" style={{ display: 'flex', alignItems: 'center' }}>
+      <button
+        contentEditable={false}
+        onClick={toggleCollapse}
+        className="absolute -left-6 p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer select-none"
+      >
+        {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+      </button>
+      <NodeViewContent as={Tag} className="m-0 flex-1" />
+    </NodeViewWrapper>
+  );
+};
+
+export const CollapsibleHeading = Heading.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      collapsed: {
+        default: true,
+        parseHTML: element => {
+          return element.getAttribute('data-collapsed') !== 'false';
+        },
+        renderHTML: attributes => {
+          return { 'data-collapsed': attributes.collapsed };
+        },
+      }
+    };
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(HeadingNodeView);
+  },
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: new PluginKey('headingFolding'),
+        state: {
+          init() {
+            return DecorationSet.empty;
+          },
+          apply(_tr, _oldState, _oldEditorState, newEditorState) {
+            const decorations: Decoration[] = [];
+            let isFolding = false;
+            let currentFoldLevel = 0;
+
+            newEditorState.doc.forEach((node, offset) => {
+              if (node.type.name === 'heading') {
+                if (node.attrs.collapsed) {
+                  isFolding = true;
+                  currentFoldLevel = node.attrs.level;
+                } else {
+                  if (node.attrs.level <= currentFoldLevel) {
+                    isFolding = false;
+                  }
+                }
+              } else {
+                if (isFolding) {
+                  decorations.push(
+                    Decoration.node(offset, offset + node.nodeSize, {
+                      style: 'display: none;',
+                      class: 'hidden-by-fold'
+                    })
+                  );
+                }
+              }
+            });
+
+            return DecorationSet.create(newEditorState.doc, decorations);
+          }
+        },
+        props: {
+          decorations(state) {
+            return this.getState(state);
+          }
+        }
+      })
+    ];
+  }
+});
+
 export const DocumentNote: React.FC<DocumentNoteProps> = ({ documentId, initialNote, sections }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
@@ -131,11 +226,15 @@ export const DocumentNote: React.FC<DocumentNoteProps> = ({ documentId, initialN
   const previousImagesRef = useRef<string[]>([]);
 
   const getInitialContent = () => {
-    if (initialNote) return initialNote;
-    if (sections && sections.length > 0) {
-      return sections.map(sec => `<h2>${sec.title}</h2><p></p>`).join('');
+    if (initialNote) {
+      // 既存のノートがある場合も、デフォルトで閉じた状態にするために、h2にdata-collapsed="true"を追加するような処理を入れることもできますが、
+      // 今回は CollapsibleHeading の default: true と parseHTML で対応しています。
+      return initialNote;
     }
-    return '<h2>ノート</h2><p></p>';
+    if (sections && sections.length > 0) {
+      return sections.map(sec => `<h2 data-collapsed="true">${sec.title}</h2><p></p>`).join('');
+    }
+    return '<h2 data-collapsed="true">ノート</h2><p></p>';
   };
 
   const handleAutoSave = useCallback((content: string) => {
@@ -162,9 +261,11 @@ export const DocumentNote: React.FC<DocumentNoteProps> = ({ documentId, initialN
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
+        heading: false,
         bulletList: { keepMarks: true, keepAttributes: false },
         orderedList: { keepMarks: true, keepAttributes: false },
       }),
+      CollapsibleHeading,
       Underline,
       Image.configure({
         allowBase64: true,
@@ -189,7 +290,7 @@ export const DocumentNote: React.FC<DocumentNoteProps> = ({ documentId, initialN
     editorProps: {
       attributes: {
         // Tailwind Typography でチェックリストが綺麗に表示されるように調整
-        class: 'prose prose-sm max-w-none focus:outline-none min-h-[200px] p-5 bg-white rounded-lg border border-gray-200 font-sans text-gray-800 prose-p:leading-relaxed prose-li:leading-relaxed prose-p:my-1 prose-li:my-0 prose-ul:my-2 prose-headings:font-bold prose-headings:mb-2 prose-headings:mt-4 first:prose-headings:mt-0 prose-img:rounded-xl prose-img:shadow-sm prose-img:my-4',
+        class: 'prose prose-sm max-w-none focus:outline-none min-h-[200px] p-5 pl-8 bg-white rounded-lg border border-gray-200 font-sans text-gray-800 prose-p:leading-relaxed prose-li:leading-relaxed prose-p:my-1 prose-li:my-0 prose-ul:my-2 prose-headings:font-bold prose-headings:mb-2 prose-headings:mt-4 first:prose-headings:mt-0 prose-img:rounded-xl prose-img:shadow-sm prose-img:my-4',
       },
     },
     onUpdate: ({ editor }) => {
