@@ -76,7 +76,20 @@ export default function QuickFlashcard() {
         secId = newSec.id;
       }
 
-      // 3. Item として保存する
+      // 3. 最大のsort_orderを取得
+      const { data: maxSortItem } = await supabase
+        .from('items')
+        .select('sort_order')
+        .eq('section_id', secId)
+        .order('sort_order', { ascending: false })
+        .limit(1);
+      
+      let nextSortOrder = 0;
+      if (maxSortItem && maxSortItem.length > 0) {
+        nextSortOrder = (maxSortItem[0].sort_order || 0) + 1;
+      }
+
+      // 4. Item として保存する
       const { error: itemErr } = await supabase
         .from('items')
         .insert({
@@ -86,7 +99,7 @@ export default function QuickFlashcard() {
           summary: 'クイックフラッシュカード',
           review_enabled: true,
           verification_status: 'verified',
-          sort_order: Date.now(), // 簡易的なソート順
+          sort_order: nextSortOrder,
         });
 
       if (itemErr) throw itemErr;
